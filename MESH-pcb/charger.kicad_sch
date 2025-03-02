@@ -1,12 +1,14 @@
 (kicad_sch
-	(version 20231120)
+	(version 20250114)
 	(generator "eeschema")
-	(generator_version "8.0")
+	(generator_version "9.0")
 	(uuid "38d1194f-f615-428d-bf6e-d495e194677a")
 	(paper "A4")
 	(lib_symbols
 		(symbol "Device:C"
-			(pin_numbers hide)
+			(pin_numbers
+				(hide yes)
+			)
 			(pin_names
 				(offset 0.254)
 			)
@@ -70,7 +72,7 @@
 			(symbol "C_0_1"
 				(polyline
 					(pts
-						(xy -2.032 -0.762) (xy 2.032 -0.762)
+						(xy -2.032 0.762) (xy 2.032 0.762)
 					)
 					(stroke
 						(width 0.508)
@@ -82,7 +84,7 @@
 				)
 				(polyline
 					(pts
-						(xy -2.032 0.762) (xy 2.032 0.762)
+						(xy -2.032 -0.762) (xy 2.032 -0.762)
 					)
 					(stroke
 						(width 0.508)
@@ -131,11 +133,16 @@
 					)
 				)
 			)
+			(embedded_fonts no)
 		)
 		(symbol "Device:LED"
-			(pin_numbers hide)
+			(pin_numbers
+				(hide yes)
+			)
 			(pin_names
-				(offset 1.016) hide)
+				(offset 1.016)
+				(hide yes)
+			)
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -203,10 +210,22 @@
 			(symbol "LED_0_1"
 				(polyline
 					(pts
-						(xy -1.27 -1.27) (xy -1.27 1.27)
+						(xy -3.048 -0.762) (xy -4.572 -2.286) (xy -3.81 -2.286) (xy -4.572 -2.286) (xy -4.572 -1.524)
 					)
 					(stroke
-						(width 0.254)
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.778 -0.762) (xy -3.302 -2.286) (xy -2.54 -2.286) (xy -3.302 -2.286) (xy -3.302 -1.524)
+					)
+					(stroke
+						(width 0)
 						(type default)
 					)
 					(fill
@@ -227,7 +246,7 @@
 				)
 				(polyline
 					(pts
-						(xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27)
+						(xy -1.27 -1.27) (xy -1.27 1.27)
 					)
 					(stroke
 						(width 0.254)
@@ -239,22 +258,10 @@
 				)
 				(polyline
 					(pts
-						(xy -3.048 -0.762) (xy -4.572 -2.286) (xy -3.81 -2.286) (xy -4.572 -2.286) (xy -4.572 -1.524)
+						(xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27)
 					)
 					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.778 -0.762) (xy -3.302 -2.286) (xy -2.54 -2.286) (xy -3.302 -2.286) (xy -3.302 -1.524)
-					)
-					(stroke
-						(width 0)
+						(width 0.254)
 						(type default)
 					)
 					(fill
@@ -300,9 +307,12 @@
 					)
 				)
 			)
+			(embedded_fonts no)
 		)
 		(symbol "Device:R"
-			(pin_numbers hide)
+			(pin_numbers
+				(hide yes)
+			)
 			(pin_names
 				(offset 0)
 			)
@@ -421,8 +431,9 @@
 					)
 				)
 			)
+			(embedded_fonts no)
 		)
-		(symbol "custom:TP4056"
+		(symbol "lib:TP4056"
 			(pin_names
 				(offset 1.016)
 			)
@@ -448,7 +459,7 @@
 				)
 			)
 			(property "Footprint" "TP4056:SOP127P600X175-9N"
-				(at 0 0 0)
+				(at -0.508 -26.67 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -476,7 +487,7 @@
 				)
 			)
 			(property "MF" "NanJing Top Power ASIC Corp."
-				(at 0 0 0)
+				(at -8.382 -30.226 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -486,7 +497,7 @@
 				)
 			)
 			(property "MAXIMUM_PACKAGE_HEIGHT" "1.75mm"
-				(at 0 0 0)
+				(at 33.274 -29.464 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -496,7 +507,7 @@
 				)
 			)
 			(property "Package" "Package"
-				(at 0 0 0)
+				(at 36.576 -31.496 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -506,7 +517,7 @@
 				)
 			)
 			(property "Price" "None"
-				(at 0 0 0)
+				(at 21.59 -27.178 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -516,7 +527,7 @@
 				)
 			)
 			(property "Check_prices" "https://www.snapeda.com/parts/TP4056/NanJing+Top+Power+ASIC+Corp./view-part/?ref=eda"
-				(at 0 0 0)
+				(at -2.032 -8.382 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -526,7 +537,7 @@
 				)
 			)
 			(property "STANDARD" "IPC 7351B"
-				(at 0 0 0)
+				(at 31.242 -26.162 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -536,7 +547,7 @@
 				)
 			)
 			(property "SnapEDA_Link" "https://www.snapeda.com/parts/TP4056/NanJing+Top+Power+ASIC+Corp./view-part/?ref=snap"
-				(at 0 0 0)
+				(at 0.508 -17.018 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -546,7 +557,7 @@
 				)
 			)
 			(property "MP" "TP4056"
-				(at 0 0 0)
+				(at 24.13 -30.988 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -555,8 +566,8 @@
 					(hide yes)
 				)
 			)
-			(property "Description_1" "\n                        \n                            Complete single cell Li-Ion battery with a constant current / constant voltage linear charger\n                        \n"
-				(at 0 0 0)
+			(property "Description_1" "Complete single cell Li-Ion battery with a constant current / constant voltage linear charger"
+				(at -4.572 -22.098 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -566,7 +577,7 @@
 				)
 			)
 			(property "Availability" "Not in stock"
-				(at 0 0 0)
+				(at 32.512 -6.35 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -576,7 +587,7 @@
 				)
 			)
 			(property "MANUFACTURER" "NanJing Top Power ASIC Corp."
-				(at 0 0 0)
+				(at 9.398 -36.576 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -615,6 +626,24 @@
 						)
 					)
 				)
+				(pin input line
+					(at -15.24 2.54 0)
+					(length 5.08)
+					(name "CE"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
 				(pin bidirectional line
 					(at -15.24 -2.54 0)
 					(length 5.08)
@@ -626,24 +655,6 @@
 						)
 					)
 					(number "2"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at 15.24 -10.16 180)
-					(length 5.08)
-					(name "GND"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "3"
 						(effects
 							(font
 								(size 1.016 1.016)
@@ -723,24 +734,6 @@
 						)
 					)
 				)
-				(pin input line
-					(at -15.24 2.54 0)
-					(length 5.08)
-					(name "CE"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
 				(pin passive line
 					(at 15.24 -5.08 180)
 					(length 5.08)
@@ -759,13 +752,36 @@
 						)
 					)
 				)
+				(pin power_in line
+					(at 15.24 -10.16 180)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
 			)
+			(embedded_fonts no)
 		)
 		(symbol "power:GND"
 			(power)
-			(pin_numbers hide)
+			(pin_numbers
+				(hide yes)
+			)
 			(pin_names
-				(offset 0) hide)
+				(offset 0)
+				(hide yes)
+			)
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -856,6 +872,7 @@
 					)
 				)
 			)
+			(embedded_fonts no)
 		)
 	)
 	(junction
@@ -869,12 +886,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "32379578-4de3-4a16-a404-6f569e0f6b9b")
-	)
-	(junction
-		(at 129.54 111.76)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "8f0d5e6f-a614-4277-8ffd-e6f7ffa94442")
 	)
 	(junction
 		(at 140.97 77.47)
@@ -906,6 +917,16 @@
 	)
 	(wire
 		(pts
+			(xy 129.54 111.76) (xy 129.54 115.57)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "163f2d50-7304-4b02-8fa2-1273389a416f")
+	)
+	(wire
+		(pts
 			(xy 132.08 77.47) (xy 132.08 78.74)
 		)
 		(stroke
@@ -926,16 +947,6 @@
 	)
 	(wire
 		(pts
-			(xy 129.54 111.76) (xy 129.54 115.57)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "259eb166-0ecd-4a0e-b09a-ccf0c4a3cb84")
-	)
-	(wire
-		(pts
 			(xy 93.98 115.57) (xy 93.98 116.84)
 		)
 		(stroke
@@ -953,16 +964,6 @@
 			(type default)
 		)
 		(uuid "3ccdc4a1-1126-4bfb-ab76-6eefe6dd5f8a")
-	)
-	(wire
-		(pts
-			(xy 129.54 106.68) (xy 129.54 111.76)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3d8bb980-ece7-4281-af0a-07aa5a3d3380")
 	)
 	(wire
 		(pts
@@ -1241,206 +1242,6 @@
 			(project "MESH"
 				(path "/2eae2fb6-7167-4a77-aa0f-49019fdac103/09ce13c7-9d17-42b2-b95a-fbe29852f466"
 					(reference "R4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "custom:TP4056")
-		(at 114.3 101.6 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "206f5c99-bafe-4484-a12d-4b4cb26cb494")
-		(property "Reference" "U3"
-			(at 114.3 83.82 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "TP4056"
-			(at 114.3 86.36 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "custom:SOP127P600X175-9N"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "MF" "NanJing Top Power ASIC Corp."
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "MAXIMUM_PACKAGE_HEIGHT" "1.75mm"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Package" "Package"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Price" "None"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Check_prices" "https://www.snapeda.com/parts/TP4056/NanJing+Top+Power+ASIC+Corp./view-part/?ref=eda"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "STANDARD" "IPC 7351B"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "SnapEDA_Link" "https://www.snapeda.com/parts/TP4056/NanJing+Top+Power+ASIC+Corp./view-part/?ref=snap"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "MP" "TP4056"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Description_1" "\n                        \n                            Complete single cell Li-Ion battery with a constant current / constant voltage linear charger\n                        \n"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Availability" "Not in stock"
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "MANUFACTURER" "NanJing Top Power ASIC Corp."
-			(at 114.3 101.6 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(pin "2"
-			(uuid "744e9418-f2e9-46c8-b93c-8f0352f5f9f5")
-		)
-		(pin "1"
-			(uuid "89c320ab-0503-4e52-aeb0-e03d6d95b89d")
-		)
-		(pin "7"
-			(uuid "3e413530-4feb-4cbb-aa8c-013936b3c641")
-		)
-		(pin "9"
-			(uuid "3e3d6bae-feaf-4b5b-b33a-f008279c91cf")
-		)
-		(pin "8"
-			(uuid "a3522bcf-e580-423b-b924-607fd777bcdd")
-		)
-		(pin "5"
-			(uuid "dbadd7ba-411e-4b3a-b61d-4818a20bf59b")
-		)
-		(pin "6"
-			(uuid "42843f47-ad5b-48ec-b8ef-6fe128fb542b")
-		)
-		(pin "4"
-			(uuid "051c9693-1b05-4f98-ae32-b3a784ec4d1d")
-		)
-		(pin "3"
-			(uuid "dea0d6e0-e5f4-4cfe-b88d-1fec62f0a37a")
-		)
-		(instances
-			(project "MESH"
-				(path "/2eae2fb6-7167-4a77-aa0f-49019fdac103/09ce13c7-9d17-42b2-b95a-fbe29852f466"
-					(reference "U3")
 					(unit 1)
 				)
 			)
@@ -2125,6 +1926,206 @@
 			(project "MESH"
 				(path "/2eae2fb6-7167-4a77-aa0f-49019fdac103/09ce13c7-9d17-42b2-b95a-fbe29852f466"
 					(reference "#PWR026")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "lib:TP4056")
+		(at 114.3 101.6 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c50fcfb9-267f-43d9-b410-d4284dc7784d")
+		(property "Reference" "U1"
+			(at 114.3 83.82 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TP4056"
+			(at 114.3 86.36 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "lib:SOP127P600X175-9N"
+			(at 113.792 128.27 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 114.3 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 114.3 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MF" "NanJing Top Power ASIC Corp."
+			(at 105.918 131.826 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MAXIMUM_PACKAGE_HEIGHT" "1.75mm"
+			(at 147.574 131.064 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Package" "Package"
+			(at 150.876 133.096 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Price" "None"
+			(at 135.89 128.778 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Check_prices" "https://www.snapeda.com/parts/TP4056/NanJing+Top+Power+ASIC+Corp./view-part/?ref=eda"
+			(at 112.268 109.982 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "STANDARD" "IPC 7351B"
+			(at 145.542 127.762 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "SnapEDA_Link" "https://www.snapeda.com/parts/TP4056/NanJing+Top+Power+ASIC+Corp./view-part/?ref=snap"
+			(at 114.808 118.618 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MP" "TP4056"
+			(at 138.43 132.588 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Description_1" "Complete single cell Li-Ion battery with a constant current / constant voltage linear charger"
+			(at 109.728 123.698 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "Availability" "Not in stock"
+			(at 146.812 107.95 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(property "MANUFACTURER" "NanJing Top Power ASIC Corp."
+			(at 123.698 138.176 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+				(hide yes)
+			)
+		)
+		(pin "5"
+			(uuid "91d942a9-ac5f-4846-a827-e3d7be5158c4")
+		)
+		(pin "6"
+			(uuid "bd711eee-e860-419f-b620-4deb320f1776")
+		)
+		(pin "4"
+			(uuid "eead67d5-ec68-4619-ac0a-dddb8c254653")
+		)
+		(pin "7"
+			(uuid "be306a5f-7f52-4561-a8e1-d2a4c0701d06")
+		)
+		(pin "2"
+			(uuid "d4f6b1a9-8eb4-49d3-bce5-ba32cc9e783a")
+		)
+		(pin "9"
+			(uuid "c1564286-8b41-4468-9811-d0473a544929")
+		)
+		(pin "3"
+			(uuid "072027f7-a861-4aa9-9939-6cc1bf308297")
+		)
+		(pin "8"
+			(uuid "82ae6a24-0b10-4272-aef2-01129b6d23cd")
+		)
+		(pin "1"
+			(uuid "9429d2ee-f50f-4f05-a9b3-1a9b21407667")
+		)
+		(instances
+			(project ""
+				(path "/2eae2fb6-7167-4a77-aa0f-49019fdac103/09ce13c7-9d17-42b2-b95a-fbe29852f466"
+					(reference "U1")
 					(unit 1)
 				)
 			)
