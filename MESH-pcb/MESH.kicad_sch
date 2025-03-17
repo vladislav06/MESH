@@ -10188,7 +10188,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical"
+		(property "Footprint" "lib:PinHeader_1x03_P2.54mm_Bare"
 			(at 78.74 160.02 0)
 			(effects
 				(font
@@ -13341,7 +13341,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+		(property "Footprint" "lib:PinHeader_1x02_P2.54mm_Bare"
 			(at 153.67 156.21 0)
 			(effects
 				(font
