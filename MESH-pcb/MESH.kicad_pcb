@@ -1621,7 +1621,7 @@
 		(descr "Resistor SMD 0201 (0603 Metric), square (rectangular) end terminal, IPC_7351 nominal with elongated pad for handsoldering. (Body size source: https://www.vishay.com/docs/20052/crcw0201e3.pdf), generated with kicad-footprint-generator")
 		(tags "resistor handsolder")
 		(property "Reference" "R10"
-			(at -2.286 -0.0254 90)
+			(at -2.3876 -0.0254 90)
 			(layer "F.SilkS")
 			(uuid "3a5ad69f-7b0d-4b23-b26f-0474b69d230e")
 			(effects
@@ -5727,7 +5727,7 @@
 		(descr "Resistor SMD 0201 (0603 Metric), square (rectangular) end terminal, IPC_7351 nominal with elongated pad for handsoldering. (Body size source: https://www.vishay.com/docs/20052/crcw0201e3.pdf), generated with kicad-footprint-generator")
 		(tags "resistor handsolder")
 		(property "Reference" "R5"
-			(at 0 -0.911 0)
+			(at 0 -1.0888 0)
 			(layer "F.SilkS")
 			(uuid "59644859-206b-4e4f-98db-0ac9a775245b")
 			(effects
@@ -6301,7 +6301,7 @@
 		(descr "Resistor SMD 0201 (0603 Metric), square (rectangular) end terminal, IPC_7351 nominal with elongated pad for handsoldering. (Body size source: https://www.vishay.com/docs/20052/crcw0201e3.pdf), generated with kicad-footprint-generator")
 		(tags "resistor handsolder")
 		(property "Reference" "R4"
-			(at 0.635 -1.038 0)
+			(at 0.0254 -1.0888 0)
 			(layer "F.SilkS")
 			(uuid "58fcbefc-25c5-42ba-8da0-ed14a690992c")
 			(effects
@@ -8631,7 +8631,7 @@
 		(descr "Capacitor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC_7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "capacitor")
 		(property "Reference" "C14"
-			(at 2.286 0.0254 270)
+			(at 2.3876 0.0254 270)
 			(layer "F.SilkS")
 			(uuid "06da5d52-b86f-49f0-aff6-44b329eaeeef")
 			(effects
@@ -17553,7 +17553,7 @@
 		)
 	)
 	(gr_text "PC5\n"
-		(at 112.395 80.264 270)
+		(at 112.395 80.1624 270)
 		(layer "B.SilkS")
 		(uuid "28151d29-d41d-47d5-ae21-0cadfd1ab9b5")
 		(effects
@@ -17605,7 +17605,7 @@
 		)
 	)
 	(gr_text "PB0"
-		(at 139.7 80.264 270)
+		(at 139.7 80.1624 270)
 		(layer "B.SilkS")
 		(uuid "33c5c961-9c5c-4cd3-8ac0-4bfe996b27e6")
 		(effects
@@ -17683,7 +17683,7 @@
 		)
 	)
 	(gr_text "PC7\nPC6\n"
-		(at 114.808 80.264 270)
+		(at 114.808 80.1624 270)
 		(layer "B.SilkS")
 		(uuid "9d68991e-5619-48fd-a2b9-15e0fd936126")
 		(effects
@@ -17709,7 +17709,7 @@
 		)
 	)
 	(gr_text "C4"
-		(at 109.855 81.661 270)
+		(at 109.855 81.534 270)
 		(layer "B.SilkS")
 		(uuid "ab36cd1f-01de-4475-a556-0569001a27ba")
 		(effects
@@ -17735,7 +17735,7 @@
 		)
 	)
 	(gr_text "C2\n"
-		(at 104.775 81.661 270)
+		(at 104.775 81.534 270)
 		(layer "B.SilkS")
 		(uuid "afbf6662-1e55-445d-a88d-dfeb66f92ca6")
 		(effects
@@ -17748,7 +17748,7 @@
 		)
 	)
 	(gr_text "C1\n"
-		(at 102.235 81.661 270)
+		(at 102.235 81.534 270)
 		(layer "B.SilkS")
 		(uuid "b4f66f05-b94f-46a9-b81e-5ecbb138cd83")
 		(effects
@@ -17761,7 +17761,7 @@
 		)
 	)
 	(gr_text "PB1\nPB2\nPB3\nPB4\nPB5\nPB6\nPB7"
-		(at 122.555 80.264 270)
+		(at 122.555 80.1624 270)
 		(layer "B.SilkS")
 		(uuid "bd0fae57-3cfc-46bb-a1eb-c70819f90f1d")
 		(effects
@@ -17771,6 +17771,19 @@
 				(bold yes)
 			)
 			(justify right bottom mirror)
+		)
+	)
+	(gr_text "+\n"
+		(at 113.03 63.246 0)
+		(layer "B.SilkS")
+		(uuid "c08a0fb9-3b16-4f22-aa4c-656a0c8c7740")
+		(effects
+			(font
+				(size 1.5 1.5)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
 		)
 	)
 	(gr_text "SWDIO\n"
@@ -17786,8 +17799,21 @@
 			(justify right bottom mirror)
 		)
 	)
+	(gr_text "-"
+		(at 115.6208 63.246 0)
+		(layer "B.SilkS")
+		(uuid "ce6a16d8-89c0-4545-82ba-4dc5f12323d7")
+		(effects
+			(font
+				(size 1.5 1.5)
+				(thickness 0.3)
+				(bold yes)
+			)
+			(justify left bottom mirror)
+		)
+	)
 	(gr_text "C3\n"
-		(at 107.442 81.661 270)
+		(at 107.442 81.534 270)
 		(layer "B.SilkS")
 		(uuid "d45fc484-31fe-46c7-8e1c-b5a7bc71b2b2")
 		(effects
