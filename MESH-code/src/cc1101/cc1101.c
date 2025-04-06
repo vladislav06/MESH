@@ -1,0 +1,850 @@
+//
+// Created by vm on 25.6.4.
+//
+#include <math.h>
+#include "cc1101.h"
+#include "stm32l0xx_hal.h"
+#include "utils.h"
+
+#define log2(x) (log(x) / log(2))
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+#define PIN_UNUSED                0xff
+
+#define CC1101_SPI_MAX_FREQ       6500000    /* 6.5 MHz */
+#define CC1101_SPI_DATA_ORDER     MSBFIRST
+#define CC1101_SPI_DATA_MODE      SPI_MODE0  /* clk low, leading edge */
+
+#define CC1101_FIFO_SIZE          64    /* 64 B */
+#define CC1101_CRYSTAL_FREQ       27    /* 26 MHz */
+#define CC1101_PKT_MAX_SIZE       61    /* 61 B, 1B for address, 2B for status */
+
+#define CC1101_WRITE              0x00
+#define CC1101_READ               0x80
+#define CC1101_BURST              0x40
+
+#define CC1101_PARTNUM            0x00
+#define CC1101_VERSION            0x14
+
+/* Command strobes */
+#define CC1101_CMD_RES            0x30  /* Reset chip */
+#define CC1101_CMD_RX             0x34  /* Enable RX */
+#define CC1101_CMD_TX             0x35  /* Enable TX */
+#define CC1101_CMD_IDLE           0x36  /* Enable IDLE */
+#define CC1101_CMD_FRX            0x3a  /* Flush the RX FIFO buffer */
+#define CC1101_CMD_FTX            0x3b  /* Flush the TX FIFO buffer */
+#define CC1101_CMD_NOP            0x3d  /* No operation */
+
+/* Registers */
+#define CC1101_REG_IOCFG0         0x02
+#define CC1101_REG_SYNC1          0x04  /* Sync Word, High uint8_t */
+#define CC1101_REG_SYNC0          0x05  /* Sync Word, Low uint8_t */
+#define CC1101_REG_PKTLEN         0x06
+#define CC1101_REG_PKTCTRL1       0x07
+#define CC1101_REG_PKTCTRL0       0x08  /* Packet Automation Control */
+
+#define CC1101_REG_CHANNR         0x0a
+#define CC1101_REG_FREQ2          0x0d
+#define CC1101_REG_FREQ1          0x0e
+#define CC1101_REG_MDMCFG4        0x10
+#define CC1101_REG_MDMCFG3        0x11
+#define CC1101_REG_MDMCFG2        0x12  /* Modem Configuration */
+#define CC1101_REG_MDMCFG1        0x13
+#define CC1101_REG_MDMCFG0        0x14
+#define CC1101_REG_DEVIATN        0x15
+#define CC1101_REG_FREQ0          0x0f
+
+#define CC1101_REG_MCSM2          0x16
+#define CC1101_REG_MCSM1          0x17
+#define CC1101_REG_MCSM0          0x18
+#define CC1101_REG_FREND0         0x22  /* Front End TX Configuration */
+
+#define CC1101_REG_PATABLE        0x3e
+#define CC1101_REG_FIFO           0x3f
+
+/* CCStatus registers */
+#define CC1101_REG_PARTNUM        0x30
+#define CC1101_REG_VERSION        0x31
+#define CC1101_REG_TXuint8_tS        0x3a
+#define CC1101_REG_RXuint8_tS        0x3b
+#define CC1101_REG_RCCTRL0_STATUS 0x3d
+
+
+struct _receive_callback {
+    void (*callback)(void);
+
+    uint16_t gpio;
+    uint8_t enabled;
+};
+
+static struct _receive_callback receive_callback;
+
+
+/* internal functions */
+void _chipSelect(struct cc1101 *instance);
+
+void _waitReady(struct cc1101 *instance);
+
+void _chipDeselect(struct cc1101 *instance);
+
+uint8_t _readRegField(struct cc1101 *instance, uint8_t addr, uint8_t hi, uint8_t lo);
+
+uint8_t _readReg(struct cc1101 *instance, uint8_t addr);
+
+void _readRegBurst(struct cc1101 *instance, uint8_t addr, uint8_t *buff, size_t size);
+
+void _writeRegField(struct cc1101 *instance, uint8_t addr, uint8_t data, uint8_t hi, uint8_t lo);
+
+void _writeReg(struct cc1101 *instance, uint8_t addr, uint8_t data);
+
+void _writeRegBurst(struct cc1101 *instance, uint8_t addr, uint8_t *data, size_t size);
+
+void _sendCmd(struct cc1101 *instance, uint8_t addr);
+
+void _setRegs(struct cc1101 *instance);
+
+void _hardReset(struct cc1101 *instance);
+
+void _flushRxBuffer(struct cc1101 *instance);
+
+void _flushTxBuffer(struct cc1101 *instance);
+
+enum CCState _getState(struct cc1101 *instance);
+
+void _setState(struct cc1101 *instance, enum CCState);
+
+void _saveStatus(struct cc1101 *instance, uint8_t status);
+
+struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi) {
+    struct cc1101 *instance = malloc(sizeof(struct cc1101));
+    instance->cs = cs;
+    instance->gd0 = gd0;
+    instance->gd2 = gd2;
+    instance->currentState = STATE_IDLE;
+    instance->mod = MOD_2FSK;
+    instance->pktLenMode = PKT_LEN_MODE_FIXED;
+    instance->addrFilterMode = ADDR_FILTER_MODE_NONE;
+    instance->recvCallback = 0;
+    instance->freq = 433.5;
+    instance->drate = 4.0;
+    instance->power = 0;
+    instance->spi = hspi;
+    return instance;
+}
+
+enum CCStatus cc1101_begin(struct cc1101 *instance, enum CCModulation mod, float freq, float drate) {
+    enum CCStatus status;
+    receive_callback.gpio = 0;
+    receive_callback.callback = 0;
+    receive_callback.enabled = 0;
+
+
+//    pinMode(cs, OUTPUT);
+//
+//    if (gd0 != PIN_UNUSED) {
+//        pinMode(gd0, INPUT);
+//    }
+//
+//    if (gd2 != PIN_UNUSED) {
+//        pinMode(gd2, INPUT);
+//    }
+
+    _chipDeselect(instance);
+//    SPI.begin();
+//    HAL_s
+
+    _hardReset(instance);
+    HAL_Delay(10);
+
+    uint8_t partnum = cc1101_getChipPartNumber(instance);
+    uint8_t version = cc1101_getChipVersion(instance);
+    if (partnum != CC1101_PARTNUM || version != CC1101_VERSION) {
+        return STATUS_CHIP_NOT_FOUND;
+    }
+
+    _setRegs(instance);
+
+    cc1101_setModulation(instance, mod);
+
+    if ((status = cc1101_setFrequency(instance, freq)) != STATUS_OK) {
+        return status;
+    }
+
+    if ((status = cc1101_setDataRate(instance, drate)) != STATUS_OK) {
+        return status;
+    }
+
+    cc1101_setOutputPower(instance, 0);
+
+    _setState(instance, STATE_IDLE);
+    _flushRxBuffer(instance);
+    _flushTxBuffer(instance);
+
+    return STATUS_OK;
+}
+
+
+void cc1101_setModulation(struct cc1101 *instance, enum CCModulation mod) {
+    instance->mod = mod;
+    _writeRegField(instance, CC1101_REG_MDMCFG2, (uint8_t) mod, 6, 4);
+
+    cc1101_setOutputPower(instance, instance->power);
+}
+
+enum CCStatus cc1101_setFrequency(struct cc1101 *instance, double freq) {
+    if (!((freq >= 300.0 && freq <= 348.0) ||
+          (freq >= 387.0 && freq <= 464.0) ||
+          (freq >= 779.0 && freq <= 928.0))) {
+        return STATUS_INVALID_PARAM;
+    }
+
+    instance->freq = freq;
+    _setState(instance, STATE_IDLE);
+
+    uint32_t f = ((freq * 65536.0) / CC1101_CRYSTAL_FREQ);
+    _writeReg(instance, CC1101_REG_FREQ0, f & 0xff);
+    _writeReg(instance, CC1101_REG_FREQ1, (f >> 8) & 0xff);
+    _writeReg(instance, CC1101_REG_FREQ2, (f >> 16) & 0xff);
+
+    cc1101_setOutputPower(instance, instance->power);
+
+    return STATUS_OK;
+}
+
+enum CCStatus cc1101_setFrequencyDeviation(struct cc1101 *instance, double dev) {
+    double xosc = CC1101_CRYSTAL_FREQ * 1000;
+
+    int devMin = (xosc / (1 << 17)) * (8 + 0) * 1;
+    int devMax = (xosc / (1 << 17)) * (8 + 7) * (1 << 7);
+
+    if (dev < devMin || dev > devMax) {
+        return STATUS_INVALID_PARAM;
+    }
+
+    uint8_t bestE = 0, bestM = 0;
+    double diff = devMax;
+
+    for (uint8_t e = 0; e <= 7; e++) {
+        for (uint8_t m = 0; m <= 7; m++) {
+            double t = (xosc / (double) (1ULL << 17)) * (8 + m) * (double) (1ULL << e);
+            if (fabs(dev - t) < diff) {
+                diff = fabs(dev - t);
+                bestE = e;
+                bestM = m;
+            }
+        }
+    }
+
+    _writeRegField(instance, CC1101_REG_DEVIATN, bestM, 2, 0);
+    _writeRegField(instance, CC1101_REG_DEVIATN, bestE, 6, 4);
+
+    return STATUS_OK;
+}
+
+void cc1101_setChannel(struct cc1101 *instance, uint8_t ch) {
+    _writeReg(instance, CC1101_REG_CHANNR, ch);
+}
+
+enum CCStatus cc1101_setChannelSpacing(struct cc1101 *instance, double sp) {
+    double xosc = CC1101_CRYSTAL_FREQ * 1000;
+
+    int spMin = (xosc / (double) (1ULL << 18)) * (256. + 0.) * 1.;
+    int spMax = (xosc / (double) (1ULL << 18)) * (256. + 255.) * 8.;
+
+    if (sp < spMin || sp > spMax) {
+        return STATUS_INVALID_PARAM;
+    }
+
+    uint8_t bestE = 0, bestM = 0;
+    double diff = spMax;
+
+    for (uint8_t e = 0; e <= 3; e++) {
+        for (uint16_t m = 0; m <= 255; m++) {
+            double t = (xosc / (double) (1ULL << 18)) * (256. + m) * (double) (1ULL << e);
+            if (fabs(sp - t) < diff) {
+                diff = fabs(sp - t);
+                bestE = e;
+                bestM = m;
+            }
+        }
+    }
+
+    _writeReg(instance, CC1101_REG_MDMCFG0, bestM);
+    _writeRegField(instance, CC1101_REG_MDMCFG1, bestE, 1, 0);
+
+    return STATUS_OK;
+}
+
+enum CCStatus cc1101_setDataRate(struct cc1101 *instance, double drate) {
+
+    static const double range[][2] = {
+            [MOD_2FSK]    = {0.6, 500.0},  /* 0.6 - 500 kBaud */
+            [MOD_GFSK]    = {0.6, 250.0},
+            [2]           = {0.0, 0.0},  /* gap */
+            [MOD_ASK_OOK] = {0.6, 250.0},
+            [MOD_4FSK]    = {0.6, 300.0},
+            [5]           = {0.0, 0.0},  /* gap */
+            [6]           = {0.0, 0.0},  /* gap */
+            [MOD_MSK]     = {26.0, 500.0}
+    };
+
+    if (drate < range[instance->mod][0] || drate > range[instance->mod][1]) {
+        return STATUS_INVALID_PARAM;
+    }
+
+    instance->drate = drate;
+
+    uint32_t xosc = CC1101_CRYSTAL_FREQ * 1000;
+    uint8_t e = log2((drate * (double) (1ULL << 20)) / xosc);
+    uint32_t m = round(drate * ((double) (1ULL << (28 - e)) / xosc) - 256.);
+
+    if (m == 256) {
+        m = 0;
+        e++;
+    }
+
+    _writeRegField(instance, CC1101_REG_MDMCFG4, e, 3, 0);
+    _writeReg(instance, CC1101_REG_MDMCFG3, (uint8_t) m);
+
+    return STATUS_OK;
+}
+
+enum CCStatus cc1101_setRxBandwidth(struct cc1101 *instance, double bw) {
+    /*
+      CC1101 supports the following channel filter bandwidths [kHz]:
+      (assuming a 26 MHz crystal).
+
+    \ E  0     1     2     3
+    M +----------------------
+    0 | 812 | 406 | 203 | 102
+    1 | 650 | 335 | 162 |  81
+    2 | 541 | 270 | 135 |  68
+    3 | 464 | 232 | 116 |  58
+
+    */
+
+    int bwMin = (CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 3) * (1 << 3));
+    int bwMax = (CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 0) * (1 << 0));
+
+    if (bw < bwMin || bw > bwMax) {
+        return STATUS_INVALID_PARAM;
+    }
+
+    uint8_t bestE = 0, bestM = 0;
+    double diff = bwMax;
+
+    for (uint8_t e = 0; e <= 3; e++) {
+        for (uint8_t m = 0; m <= 3; m++) {
+            double t = (double) (CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + m) * (1 << e));
+            if (fabs(bw - t) < diff) {
+                diff = fabs(bw - t);
+                bestE = e;
+                bestM = m;
+            }
+        }
+    }
+
+    _writeRegField(instance, CC1101_REG_MDMCFG4, bestE, 7, 6);
+    _writeRegField(instance, CC1101_REG_MDMCFG4, bestM, 5, 4);
+
+    return STATUS_OK;
+}
+
+void cc1101_setOutputPower(struct cc1101 *instance, int8_t power) {
+
+    static const uint8_t powers[][8] = {
+            [0 /* 315 Mhz */ ] = {0x12, 0x0d, 0x1c, 0x34, 0x51, 0x85, 0xcb, 0xc2},
+            [1 /* 433 Mhz */ ] = {0x12, 0x0e, 0x1d, 0x34, 0x60, 0x84, 0xc8, 0xc0},
+            [2 /* 868 Mhz */ ] = {0x03, 0x0f, 0x1e, 0x27, 0x50, 0x81, 0xcb, 0xc2},
+            [3 /* 915 MHz */ ] = {0x03, 0x0e, 0x1e, 0x27, 0x8e, 0xcd, 0xc7, 0xc0}
+    };
+
+    uint8_t powerIdx, freqIdx;
+
+    if (instance->freq <= 348.0) {
+        freqIdx = 0;
+    } else if (instance->freq <= 464.0) {
+        freqIdx = 1;
+    } else if (instance->freq <= 855.0) {
+        freqIdx = 2;
+    } else {
+        freqIdx = 3;
+    }
+
+    if (power <= -30) {
+        powerIdx = 0;
+    } else if (power <= -20) {
+        powerIdx = 1;
+    } else if (power <= -15) {
+        powerIdx = 2;
+    } else if (power <= -10) {
+        powerIdx = 3;
+    } else if (power <= 0) {
+        powerIdx = 4;
+    } else if (power <= 5) {
+        powerIdx = 5;
+    } else if (power <= 7) {
+        powerIdx = 6;
+    } else {
+        powerIdx = 7;
+    }
+
+    instance->power = power;
+
+    if (instance->mod == MOD_ASK_OOK) {
+        /* No shaping. Use only the first 2 entries in the power table. */
+        uint8_t data[2] = {0x00, powers[freqIdx][powerIdx]};
+        _writeRegBurst(instance, CC1101_REG_PATABLE, data, sizeof(data));
+        _writeRegField(instance, CC1101_REG_FREND0, 1, 2, 0);  /* PA_POWER = 1 */
+    } else {
+        _writeReg(instance, CC1101_REG_PATABLE, powers[freqIdx][powerIdx]);
+        _writeRegField(instance, CC1101_REG_FREND0, 0, 2, 0);  /* PA_POWER = 0 */
+    }
+}
+
+enum CCStatus cc1101_setPreambleLength(struct cc1101 *instance, uint8_t length) {
+    uint8_t data;
+
+    switch (length) {
+        case 16:
+            data = 0;
+            break;
+        case 24:
+            data = 1;
+            break;
+        case 36:
+            data = 2;
+            break;
+        case 48:
+            data = 3;
+            break;
+        case 64:
+            data = 4;
+            break;
+        case 96:
+            data = 5;
+            break;
+        case 128:
+            data = 6;
+            break;
+        case 192:
+            data = 7;
+            break;
+        default:
+            return STATUS_INVALID_PARAM;
+    }
+
+    _writeRegField(instance, CC1101_REG_MDMCFG1, data, 6, 4);
+    return STATUS_OK;
+}
+
+void cc1101_setSyncWord(struct cc1101 *instance, uint16_t sync) {
+    _writeReg(instance, CC1101_REG_SYNC1, sync >> 8);
+    _writeReg(instance, CC1101_REG_SYNC0, sync & 0xff);
+}
+
+void cc1101_setSyncMode(struct cc1101 *instance, enum CCSyncMode mode) {
+    _writeRegField(instance, CC1101_REG_MDMCFG2, (uint8_t) mode, 2, 0);
+}
+
+void cc1101_setPacketLengthMode(struct cc1101 *instance, enum CCPacketLengthMode mode, uint8_t length) {
+    instance->pktLenMode = mode;
+    _writeRegField(instance, CC1101_REG_PKTCTRL0, (uint8_t) mode, 1, 0);
+
+    switch (mode) {
+        case PKT_LEN_MODE_FIXED:
+            _writeReg(instance, CC1101_REG_PKTLEN, length);
+            break;
+        case PKT_LEN_MODE_VARIABLE:
+            /* Indicates the maximum packet length allowed. */
+            _writeReg(instance, CC1101_REG_PKTLEN, length);
+            break;
+    }
+}
+
+void cc1101_setAddressFilteringMode(struct cc1101 *instance, enum CCAddressFilteringMode mode) {
+    _writeRegField(instance, CC1101_REG_PKTCTRL1, (uint8_t) mode, 1, 0);
+}
+
+void cc1101_setCrc(struct cc1101 *instance, uint8_t enable) {
+    _writeRegField(instance, CC1101_REG_PKTCTRL0, (uint8_t) enable, 2, 2);
+}
+
+enum CCStatus cc1101_transmit(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
+    uint8_t uint8_tsSent = 0;
+
+    if (length > 255) {
+        return STATUS_LENGTH_TOO_BIG;
+    }
+
+    _setState(instance, STATE_IDLE);
+    _flushTxBuffer(instance);
+
+    switch (instance->pktLenMode) {
+        case PKT_LEN_MODE_FIXED:
+            _writeReg(instance, CC1101_REG_PKTLEN, (uint8_t) length);
+            break;
+        case PKT_LEN_MODE_VARIABLE:
+            _writeReg(instance, CC1101_REG_FIFO, (uint8_t) length);
+            uint8_tsSent++;
+            break;
+    }
+
+    if (instance->addrFilterMode != ADDR_FILTER_MODE_NONE) {
+        _writeReg(instance, CC1101_REG_FIFO, addr);
+        uint8_tsSent++;
+    }
+
+    uint8_t l = min((uint8_t) length, (uint8_t) (CC1101_FIFO_SIZE - uint8_tsSent));
+    _writeRegBurst(instance, CC1101_REG_FIFO, data, l);
+    uint8_tsSent += l;
+
+    _setState(instance, STATE_TX);
+
+    while (uint8_tsSent < length) {
+        uint8_t uint8_tsInFifo = _readRegField(instance, CC1101_REG_TXuint8_tS, 6, 0);
+
+        if (uint8_tsInFifo < CC1101_FIFO_SIZE) {
+            uint8_t uint8_tsToWrite = min((uint8_t) (length - uint8_tsSent),
+                                          (uint8_t) (CC1101_FIFO_SIZE - uint8_tsInFifo));
+            _writeRegBurst(instance, CC1101_REG_FIFO, data + uint8_tsSent, uint8_tsToWrite);
+            uint8_tsSent += uint8_tsToWrite;
+        }
+    }
+
+    while (_getState(instance) != STATE_IDLE) {
+        delay_micros(50);
+    }
+
+    return STATUS_OK;
+}
+
+enum CCStatus cc1101_receive(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
+    if (length > 255) {
+        return STATUS_LENGTH_TOO_BIG;
+    }
+
+    _setState(instance, STATE_IDLE);
+    _flushRxBuffer(instance);
+    _setState(instance, STATE_RX);
+
+    uint8_t pktLength = 0;
+    switch (instance->pktLenMode) {
+        case PKT_LEN_MODE_FIXED:
+            pktLength = _readReg(instance, CC1101_REG_PKTLEN);
+            break;
+        case PKT_LEN_MODE_VARIABLE:
+            /* Wait for length uint8_t. */
+            while (pktLength == 0) {
+                pktLength = _readReg(instance, CC1101_REG_FIFO);
+            }
+            break;
+    }
+
+    if (pktLength > length) {
+        return STATUS_LENGTH_TOO_SMALL;
+    }
+
+    if (instance->addrFilterMode == ADDR_FILTER_MODE_CHECK) {
+        // TODO: To check.
+        (void) _readReg(instance, CC1101_REG_FIFO);
+    }
+
+    uint8_t uint8_tsInFifo = _readRegField(instance, CC1101_REG_RXuint8_tS, 6, 0);
+    uint8_t uint8_tsRead = 0;
+
+    /*
+      For packet lengths less than 64 uint8_ts it is recommended to wait until
+      the complete packet has been received before reading it out of the RX FIFO.
+    */
+    if (pktLength <= CC1101_PKT_MAX_SIZE) {
+        while (uint8_tsInFifo < pktLength) {
+            delay_micros(15 * 8);
+            uint8_tsInFifo = _readRegField(instance, CC1101_REG_RXuint8_tS, 6, 0);
+        }
+    }
+
+    while (uint8_tsRead < pktLength) {
+        while (uint8_tsInFifo == 0) {
+            delay_micros(15);
+            uint8_tsInFifo = _readRegField(instance, CC1101_REG_RXuint8_tS, 6, 0);
+        }
+
+        uint8_t uint8_tsToRead = min((uint8_t) (pktLength - uint8_tsRead), uint8_tsInFifo);
+        _readRegBurst(instance, CC1101_REG_FIFO, data + uint8_tsRead, uint8_tsToRead);
+        uint8_tsRead += uint8_tsToRead;
+    }
+
+    while (_getState(instance) != STATE_IDLE) {
+        delay_micros(50);
+    }
+
+    return STATUS_OK;
+}
+
+void cc1101_receiveCallback(struct cc1101 *instance, void (*func)(void)) {
+    /*
+      Associated to the RX FIFO: Asserts when RX FIFO is filled at or above
+      the RX FIFO threshold or the end of packet is reached. De-asserts when
+      the RX FIFO is empty.
+    */
+    _writeRegField(instance, CC1101_REG_IOCFG0, 1, 5, 0);
+
+    // TODO: Move to other method.
+    _flushRxBuffer(instance);
+    _setState(instance, STATE_RX);
+
+    instance->recvCallback = 1;
+    receive_callback.callback = func;
+    receive_callback.gpio = instance->gd0;
+//    attachInterrupt(digitalPinToInterrupt(gd0), func, RISING);
+}
+
+/* internal function implementation */
+
+void cc1101_exti_callback(uint16_t gpio) {
+    if (gpio == receive_callback.gpio && receive_callback.enabled == 1) {
+        receive_callback.callback();
+    }
+}
+
+
+enum CCState _getState(struct cc1101 *instance) {
+    _sendCmd(instance, CC1101_CMD_NOP);
+    return instance->currentState;
+}
+
+void _setState(struct cc1101 *instance, enum CCState state) {
+    switch (state) {
+        case STATE_IDLE:
+            _sendCmd(instance, CC1101_CMD_IDLE);
+            break;
+        case STATE_TX:
+            _sendCmd(instance, CC1101_CMD_TX);
+            break;
+        case STATE_RX:
+            _sendCmd(instance, CC1101_CMD_RX);
+            break;
+        default:
+            /* Not supported. */
+            return;
+    }
+
+    while (_getState(instance) != state) {
+        delay_micros(100);
+    }
+}
+
+void _saveStatus(struct cc1101 *instance, uint8_t status) {
+    instance->currentState = (enum CCState) ((status >> 4) & 0b111);
+}
+
+void _hardReset(struct cc1101 *instance) {
+//    SPI.beginTransaction(spiSettings);
+
+    _chipDeselect(instance);
+    delay_micros(5);
+    _chipSelect(instance);
+    delay_micros(5);
+    _chipDeselect(instance);
+    delay_micros(40);
+
+    _chipSelect(instance);
+    _waitReady(instance);
+
+    uint8_t data = CC1101_CMD_RES;
+    HAL_SPI_Transmit(instance->spi, &data, 1, 1);
+//    SPI.transfer(CC1101_CMD_RES);
+
+
+    _waitReady(instance);
+    _chipDeselect(instance);
+
+//    SPI.endTransaction();
+}
+
+void _flushRxBuffer(struct cc1101 *instance) {
+    if (instance->currentState != STATE_IDLE && instance->currentState != STATE_RXFIFO_OVERFLOW) {
+        return;
+    }
+    _sendCmd(instance, CC1101_CMD_FRX);
+}
+
+void _flushTxBuffer(struct cc1101 *instance) {
+    if (instance->currentState != STATE_IDLE && instance->currentState != STATE_TXFIFO_UNDERFLOW) {
+        return;
+    }
+    _sendCmd(instance, CC1101_CMD_FTX);
+}
+
+uint8_t cc1101_getChipPartNumber(struct cc1101 *instance) {
+    return _readReg(instance, CC1101_REG_PARTNUM);
+}
+
+uint8_t cc1101_getChipVersion(struct cc1101 *instance) {
+    return _readReg(instance, CC1101_REG_VERSION);
+}
+
+uint8_t _readRegField(struct cc1101 *instance, uint8_t addr, uint8_t hi, uint8_t lo) {
+    return (_readReg(instance, addr) >> lo) & ((1 << (hi - lo + 1)) - 1);
+}
+
+uint8_t _readReg(struct cc1101 *instance, uint8_t addr) {
+    uint8_t header = CC1101_READ | (addr & 0b111111);
+
+    if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
+        /* CCStatus registers - access with the burst bit on. */
+        header |= CC1101_BURST;
+    }
+
+//    SPI.beginTransaction(spiSettings);
+    _chipSelect(instance);
+    _waitReady(instance);
+
+    uint8_t status = 0;
+    HAL_SPI_TransmitReceive(instance->spi, &header, &status, 1, 1);
+    _saveStatus(instance, status);
+
+    uint8_t data = 0;
+    HAL_SPI_TransmitReceive(instance->spi, &data, &data, 1, 1);
+
+    _chipDeselect(instance);
+//    SPI.endTransaction();
+    return data;
+}
+
+void _readRegBurst(struct cc1101 *instance, uint8_t addr, uint8_t *buff, size_t size) {
+    uint8_t header = CC1101_READ | CC1101_BURST | (addr & 0b111111);
+
+    if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
+        /* CCStatus registers cannot be accessed with the burst option. */
+        return;
+    }
+
+//    SPI.beginTransaction(spiSettings);
+    _chipSelect(instance);
+    _waitReady(instance);
+
+    uint8_t status = 0;
+    HAL_SPI_TransmitReceive(instance->spi, &header, &status, 1, 1);
+    _saveStatus(instance, status);
+
+    uint8_t data = 0;
+    for (size_t i = 0; i < size; i++) {
+//        buff[i] = SPI.transfer(0x00);
+        HAL_SPI_TransmitReceive(instance->spi, &data, &buff[i], 1, 1);
+    }
+
+    _chipDeselect(instance);
+//    SPI.endTransaction();
+}
+
+void _setRegs(struct cc1101 *instance) {
+    /* Automatically calibrate when going from IDLE to RX or TX. */
+    _writeRegField(instance, CC1101_REG_MCSM0, 1, 5, 4);
+
+    /* Disable data whitening. */
+    _writeRegField(instance, CC1101_REG_PKTCTRL0, 0, 6, 6);
+
+    /*
+      TODO: Enable append status. Two status uint8_ts will be appended to the payload
+      of the packet. The status uint8_ts contain RSSI and LQI values, as well as
+      CRC OK.
+    */
+    _writeRegField(instance, CC1101_REG_PKTCTRL1, 0, 2, 2);
+
+    /* Enable Manchester encoding */
+    //writeRegField(CC1101_REG_MDMCFG2, 1, 3, 3);
+}
+
+void _writeRegField(struct cc1101 *instance, uint8_t addr, uint8_t data, uint8_t hi,
+                    uint8_t lo) {
+    data <<= lo;
+    uint8_t current = _readReg(instance, addr);
+    uint8_t mask = ((1 << (hi - lo + 1)) - 1) << lo;
+    data = (current & ~mask) | (data & mask);
+    _writeReg(instance, addr, data);
+}
+
+void _writeReg(struct cc1101 *instance, uint8_t addr, uint8_t data) {
+    if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
+        /* CCStatus registers are read-only. */
+        return;
+    }
+
+    uint8_t header = CC1101_WRITE | (addr & 0b111111);
+
+//    SPI.beginTransaction(spiSettings);
+    _chipSelect(instance);
+    _waitReady(instance);
+
+
+    uint8_t status = 0;
+    HAL_SPI_TransmitReceive(instance->spi, &header, &status, 1, 1);
+    _saveStatus(instance, status);
+
+    HAL_SPI_TransmitReceive(instance->spi, &data, &status, 1, 1);
+    _saveStatus(instance, status);
+
+    _chipDeselect(instance);
+//    SPI.endTransaction();
+}
+
+void _writeRegBurst(struct cc1101 *instance, uint8_t addr, uint8_t *data, size_t size) {
+    if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
+        /* CCStatus registers are read-only. */
+        return;
+    }
+
+    uint8_t header = CC1101_WRITE | CC1101_BURST | (addr & 0b111111);
+
+//    SPI.beginTransaction(spiSettings);
+    _chipSelect(instance);
+    _waitReady(instance);
+
+
+    uint8_t status = 0;
+    HAL_SPI_TransmitReceive(instance->spi, &header, &status, 1, 1);
+    _saveStatus(instance, status);
+
+    for (size_t i = 0; i < size; i++) {
+        status = 0;
+        HAL_SPI_TransmitReceive(instance->spi, &data[i], &status, 1, 1);
+        _saveStatus(instance, status);
+
+//        saveStatus(SPI.transfer(data[i]));
+    }
+
+    _chipDeselect(instance);
+//    SPI.endTransaction();
+}
+
+void _sendCmd(struct cc1101 *instance, uint8_t addr) {
+    uint8_t header = CC1101_WRITE | (addr & 0b111111);
+
+//    SPI.beginTransaction(spiSettings);
+    _chipSelect(instance);
+    _waitReady(instance);
+
+    uint8_t status = 0;
+    HAL_SPI_TransmitReceive(instance->spi, &header, &status, 1, 1);
+    _saveStatus(instance, status);
+
+    _chipDeselect(instance);
+//    SPI.endTransaction();
+}
+
+void _chipSelect(struct cc1101 *instance) {
+//    digitalWrite(cs, LOW);
+    HAL_GPIO_WritePin(GPIOA, instance->cs, 0);
+
+}
+
+void _chipDeselect(struct cc1101 *instance) {
+//    digitalWrite(cs, HIGH);
+    HAL_GPIO_WritePin(GPIOA, instance->cs, 1);
+}
+
+void _waitReady(struct cc1101 *instance) {
+    while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6));
+}
+
