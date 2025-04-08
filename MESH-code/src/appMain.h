@@ -20,6 +20,11 @@ void appMain(ADC_HandleTypeDef *hadc,
              TIM_HandleTypeDef *htim6,
              UART_HandleTypeDef *huart2);
 
+void on_receive(void);
+
+
+void transmitter(void);
+void receiver(void);
 /**
  * Will call each exti in exti_callbacks
  * @param gpio
