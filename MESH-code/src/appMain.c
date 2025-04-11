@@ -14,18 +14,19 @@ void appMain(ADC_HandleTypeDef *hadc,
              TIM_HandleTypeDef *htim2,
              TIM_HandleTypeDef *htim6,
              UART_HandleTypeDef *huart2) {
-
+    //init utilities
     utils_init(htim6);
     HAL_Delay(1000);
 
-    cc = cc1101_create(GPIO_PIN_4, GPIO_PIN_14, 0, hspi1);
-    cc1101_begin(cc, MOD_ASK_OOK, 433.8, 10);
+    // cc1101 initialisation
+    cc = cc1101_create(GPIO_PIN_4, GPIO_PIN_14, GPIO_PIN_15, hspi1);
 
+    // config cc1101
+    cc1101_begin(cc, MOD_ASK_OOK, 433.8, 10);
     cc1101_setModulation(cc, MOD_ASK_OOK);
     cc1101_setFrequency(cc, 433.8);
     cc1101_setDataRate(cc, 10);
     cc1101_setOutputPower(cc, 10);
-
     cc1101_setPacketLengthMode(cc, PKT_LEN_MODE_VARIABLE, 255);
     cc1101_setAddressFilteringMode(cc, ADDR_FILTER_MODE_NONE);
     cc1101_setPreambleLength(cc, 16);
@@ -33,7 +34,19 @@ void appMain(ADC_HandleTypeDef *hadc,
     cc1101_setSyncMode(cc, SYNC_MODE_16_16);
     cc1101_setCrc(cc, false);
 
+    //register EXTI callback
+    interrupts[0].interrupt = cc1101_exti_callback_gd0;
+    interrupts[0].gpio = GPIO_PIN_14;
+    interrupts[0].arg = cc;
+    interrupts[1].interrupt = cc1101_exti_callback_gd2;
+    interrupts[1].gpio = GPIO_PIN_15;
+    interrupts[1].arg = cc;
 
+    cc1101_start_receive(cc);
+    cc1101_receiveCallback(cc, on_receive);
+    while (1) {
+        HAL_Delay(1);
+    }
     /*
      * stm32 has 96 bit large unique id which consists of
      * UID[31:0]: X and Y coordinates on the wafer expressed in BCD format
@@ -54,32 +67,17 @@ void appMain(ADC_HandleTypeDef *hadc,
      */
 
 
-    uint32_t id = HAL_GetUIDw2();
-    if (id == 4128845) {
-        transmitter();
-    } else {
-        receiver();
-    }
 }
 
-void on_receive(void) {
+void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, 1);
-    uint8_t receive[255] = {0};
-
-    cc1101_receive(cc, receive, 36, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, 0);
-
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
-
-    printf("received string: ");
-    for (int i = 0; i < 36; i++) {
-        printf("%c", receive[i]);
+    printf("received %d:", len);
+    for (int i = 0; i < len; i++) {
+        printf("%c", data[i]);
     }
+    printf("rssi: %d, lq: %d", rssi, lq);
     printf("\r\n");
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    memset(receive, 0, 255);
-
-
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, 0);
 }
 
 void transmitter(void) {
@@ -117,7 +115,11 @@ void receiver(void) {
 
 
 void HAL_GPIO_EXTI_Callback(uint16_t gpio) {
-    for (uint32_t i = 0; i < (sizeof(exti_callbacks) / sizeof(exti_callbacks[0])); i++) {
-        exti_callbacks[i](gpio);
+    for (uint32_t i = 0; i < (sizeof(interrupts) / sizeof(interrupts[0])); i++) {
+        if (interrupts[i].gpio == gpio) {
+            if (HAL_GPIO_ReadPin(GPIOC, gpio)) {
+                interrupts[i].interrupt(gpio, interrupts[i].arg);
+            }
+        }
     }
 }
