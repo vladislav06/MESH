@@ -8,14 +8,17 @@
 #include "stm32l0xx_hal.h"
 #include "cc1101.h"
 
-struct Interrupt{
-    void (*interrupt)(uint16_t gpio,void* arg);
-    void* arg;
+struct Interrupt {
+    void (*interrupt)(uint16_t gpio, void *arg);
+
+    void *arg;
     uint16_t gpio;
+    GPIO_TypeDef *port;
 };
 
+static uint8_t enableInterrupts = 0;
 // Array of gpio external interrupt handlers
-static struct Interrupt interrupts[]={
+static struct Interrupt interrupts[] = {
         {},//place for cc1101 GD0 interrupt
         {},//place for cc1101 GD2 interrupt
 };
@@ -29,6 +32,7 @@ void appMain(ADC_HandleTypeDef *hadc,
 void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);
 
 void transmitter(void);
+
 void receiver(void);
 
 /**

@@ -62,10 +62,18 @@ enum CCAddressFilteringMode {
     ADDR_FILTER_MODE_CHECK_BC_0 = 2,    /* Address check, 0 broadcast */
     ADDR_FILTER_MODE_CHECK_BC_0_255 = 3 /* Address check, 0 and 255 broadcast */
 };
-enum CCReceiveStatus {
-    RECEIVE_BEGIN = 0,
-    RECEIVE_END = 1,
+enum CCTRXState {
+    TRX_DISABLE = 0,
+    TX_START = 1,
+    TX_END = 2,
+    TX_STOP = 4,
+    TX = TX_START | TX_END | TX_STOP,
+    RX_START = 8,
+    RX_END = 16,
+    RX_STOP = 32,
+    RX = RX_START | RX_END | RX_STOP,
 };
+
 
 struct cc1101 {
     SPI_HandleTypeDef *spi;
@@ -82,13 +90,18 @@ struct cc1101 {
     void (*receive_callback)(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);
 
     // packer reception
-    uint8_t lastPacketLen;
-    enum CCReceiveStatus receiveState;
-    uint8_t lastPacketRecLen;
+    uint8_t rxPckLen;
+    enum CCTRXState trState;
+    uint8_t rxPckLenProg;
     uint8_t rxFiFoThresSize;
     uint8_t rxBuf[256];
+
     //packet transmission
+    uint8_t txPckLen;
+    uint8_t txPckLenProg;
     uint8_t txFiFoThresSize;
+    uint8_t txBuf[256];
+
 
 };
 
@@ -144,5 +157,7 @@ void
 cc1101_receiveCallback(struct cc1101 *instance, void (*func)(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq));
 
 void cc1101_start_receive(struct cc1101 *instance);
+
+void cc1101_start_transmit(struct cc1101 *instance);
 
 #endif //MESH_CODE_CC1101_H
