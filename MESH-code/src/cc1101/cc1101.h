@@ -13,7 +13,6 @@
 
 enum CCStatus {
     STATUS_OK = 0,
-
     STATUS_LENGTH_TOO_SMALL,
     STATUS_LENGTH_TOO_BIG,
     STATUS_INVALID_PARAM,
@@ -62,16 +61,46 @@ enum CCAddressFilteringMode {
     ADDR_FILTER_MODE_CHECK_BC_0 = 2,    /* Address check, 0 broadcast */
     ADDR_FILTER_MODE_CHECK_BC_0_255 = 3 /* Address check, 0 and 255 broadcast */
 };
+
 enum CCTRXState {
     TRX_DISABLE = 0,
+    //start of transmission
     TX_START = 1,
+    //end of transmission
     TX_END = 2,
+    //no transmission
     TX_STOP = 4,
     TX = TX_START | TX_END | TX_STOP,
+    // start of reception
     RX_START = 8,
-    RX_END = 16,
-    RX_STOP = 32,
-    RX = RX_START | RX_END | RX_STOP,
+    // end of reception, but before callback, sync transmit can ignore this state
+    RX_PRE_END = 16,
+    // end of reception
+    RX_END = 32,
+    // no reception
+    RX_STOP = 64,
+    RX = RX_START | RX_PRE_END | RX_END | RX_STOP,
+};
+
+// default state to go into after sync/async transmit
+enum CCDefState {
+    DEF_IDLE = 0,
+    DEF_RX,
+};
+
+struct CCconfig {
+    enum CCModulation mod;
+    enum CCPacketLengthMode pktLenMode;
+    uint8_t packetMaxLen;
+    enum CCAddressFilteringMode addrFilterMode;
+    enum CCSyncMode syncMode;
+    uint16_t syncWord;
+    uint8_t crc;
+    float freq;
+    float drate;
+    int8_t power;
+    float freqDev;
+    float bandwidth;
 };
 
 
@@ -79,19 +108,18 @@ struct cc1101 {
     SPI_HandleTypeDef *spi;
     uint16_t cs, gd0, gd2;
     enum CCState currentState;
-    enum CCModulation mod;
-    enum CCPacketLengthMode pktLenMode;
-    enum CCAddressFilteringMode addrFilterMode;
+    enum CCDefState defaultState;
+
+    struct CCconfig config;
+
     uint8_t recvCallbackEn;
-    double freq;
-    double drate;
-    int8_t power;
 
     void (*receive_callback)(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);
 
+    enum CCTRXState trState;
+
     // packer reception
     uint8_t rxPckLen;
-    enum CCTRXState trState;
     uint8_t rxPckLenProg;
     uint8_t rxFiFoThresSize;
     uint8_t rxBuf[256];
@@ -101,8 +129,6 @@ struct cc1101 {
     uint8_t txPckLenProg;
     uint8_t txFiFoThresSize;
     uint8_t txBuf[256];
-
-
 };
 
 
@@ -110,15 +136,15 @@ void cc1101_exti_callback_gd0(uint16_t gpio, void *arg);
 
 void cc1101_exti_callback_gd2(uint16_t gpio, void *arg);
 
-
 struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi);
-
 
 enum CCStatus cc1101_begin(struct cc1101 *instance, enum CCModulation mod, float freq, float drate);
 
 uint8_t cc1101_getChipPartNumber(struct cc1101 *instance);
 
 uint8_t cc1101_getChipVersion(struct cc1101 *instance);
+
+void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config);
 
 void cc1101_setModulation(struct cc1101 *instance, enum CCModulation mod);
 
@@ -149,9 +175,12 @@ enum CCStatus cc1101_setPreambleLength(struct cc1101 *instance, uint8_t length);
 
 void cc1101_setSyncWord(struct cc1101 *instance, uint16_t sync);
 
-enum CCStatus cc1101_transmit(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr);
+enum CCStatus cc1101_transmit_async(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr);
 
-enum CCStatus cc1101_receive(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr);
+enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr);
+
+int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t *rssi, uint8_t *lq,
+                                  uint32_t timeout);
 
 void
 cc1101_receiveCallback(struct cc1101 *instance, void (*func)(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq));

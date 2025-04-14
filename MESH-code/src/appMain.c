@@ -10,6 +10,7 @@
 #define D4 GPIO_PIN_1
 
 static struct cc1101 *cc;
+static int n = 0;
 
 void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
@@ -70,42 +71,83 @@ void appMain(ADC_HandleTypeDef *hadc,
     interrupts[1].interrupt = cc1101_exti_callback_gd2;
     interrupts[1].port = GPIOC;
     interrupts[1].gpio = GPIO_PIN_15;
+
+    cc->trState = RX_STOP;
     enableInterrupts = 1;
     // receiver
     uint32_t uid = HAL_GetUIDw2();
 
-    cc->trState = RX_STOP;
-    cc1101_receiveCallback(cc, on_receive);
-    cc1101_start_receive(cc);
 
-
-    int n = 0;
     uint8_t transmit[256];
+    uint8_t size = sprintf(transmit,
+                           "123 %d",
+                           n);
+    cc1101_transmit_sync(cc, transmit, size + 1, 0);
+
+//    cc1101_receiveCallback(cc, on_receive);
+//    cc1101_start_receive(cc);
+
+//
+//    int n = 0;
+//    int ns=50;
+//    uint8_t transmit[256];
+//    char zeros[240] = {0};
+//    while (1) {
+//        HAL_Delay(500);
+//        HAL_GPIO_WritePin(GPIOA, D3, 1);
+//        for (int i = 0; i < ns; i++) {
+//            zeros[i] = '0';
+//        }
+//        uint8_t size = sprintf(transmit,
+//                               "%s %d",
+////                               "123 %d",
+//                               zeros, n);
+//        cc1101_transmit_async(cc, transmit, size + 1, 0);
+//        HAL_GPIO_WritePin(GPIOA, D3, 0);
+//        HAL_Delay(500);
+//        n++;
+//        ns++;
+//        if(ns>230){
+//            ns=0;
+//        }
+//    }
+//    while (1);
+    uint8_t data[256] = {0};
+    uint8_t rssi;
+    uint8_t lq;
     while (1) {
-        HAL_Delay(500);
-        HAL_GPIO_WritePin(GPIOA, D3, 1);
-        uint8_t size = sprintf(transmit,
-                               "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 %d",
+        uint8_t len = cc1101_receive_sync(cc, data, 255, &rssi, &lq, 1000);
+        if (len > 0) {            printf("received %d:", len);
+            for (int i = 0; i < len; i++) {
+                printf("%c", data[i]);
+            }
+            printf(" rssi: %d, lq: %d", rssi, lq);
+            memset(data, 0, 256);
+            printf("\r\n");
+        }
+        HAL_Delay(100);
+    }
+//    while (1) {
+//        HAL_GPIO_WritePin(GPIOA, D3, 1);
+//        uint8_t transmit[256];
+//        uint8_t size = sprintf(transmit,
 //                               "123 %d",
-                               n);
-        cc1101_transmit(cc, transmit, size + 1, 0);
-        HAL_GPIO_WritePin(GPIOA, D3, 0);
-        HAL_Delay(500);
-        n++;
-    }
-
-
-    while (1);
-    if (uid == 0x280050) {
-        receiver();
-    }
-    // transmitter
-    if (uid == 0x3F004D) {
-        transmitter();
-    }
+//                               456);
+//        cc1101_transmit_async(cc, transmit, size + 1, 0);
+//        HAL_GPIO_WritePin(GPIOA, D3, 0);
+//        HAL_Delay(100);
+//    }
+//    if (uid == 0x280050) {
+//        receiver();
+//    }
+//    // transmitter
+//    if (uid == 0x3F004D) {
+//        transmitter();
+//    }
 
 
 }
+
 
 void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
     HAL_GPIO_WritePin(GPIOA, D4, 1);
@@ -113,8 +155,15 @@ void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
     for (int i = 0; i < len; i++) {
         printf("%c", data[i]);
     }
-    printf("rssi: %d, lq: %d", rssi, lq);
+    printf(" rssi: %d, lq: %d", rssi, lq);
     printf("\r\n");
+    //transmit answer
+    uint8_t transmit[256];
+    uint8_t size = sprintf(transmit,
+                           "123 %d",
+                           n);
+    cc1101_transmit_sync(cc, transmit, size + 1, 0);
+    n++;
     HAL_GPIO_WritePin(GPIOA, D4, 0);
 }
 
@@ -124,7 +173,7 @@ void transmitter(void) {
     while (1) {
         HAL_GPIO_WritePin(GPIOA, D3, 1);
         uint8_t size = sprintf(transmit, "%d", n);
-        cc1101_transmit(cc, transmit, size + 1, 0);
+        cc1101_transmit_async(cc, transmit, size + 1, 0);
         HAL_GPIO_WritePin(GPIOA, D3, 0);
         HAL_Delay(500);
         n++;
@@ -151,15 +200,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t gpio) {
     if (!enableInterrupts) {
         return;
     }
-//    for (uint32_t i = 0; i < (sizeof(interrupts) / sizeof(interrupts[0])); i++) {
-    int i = 0;
-    if (interrupts[i].gpio == gpio) {
-        interrupts[i].interrupt(gpio, interrupts[i].arg);
+    for (uint32_t i = 0; i < (sizeof(interrupts) / sizeof(interrupts[0])); i++) {
+        if (interrupts[i].gpio == gpio) {
+            interrupts[i].interrupt(gpio, interrupts[i].arg);
+        }
     }
-    //
-    i = 1;
-    if (interrupts[i].gpio == gpio) {
-        interrupts[i].interrupt(gpio, interrupts[i].arg);
-    }
-//    }
+    //clear all pending interrupts
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_15);
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_14);
 }

@@ -7,6 +7,7 @@
 #include "stm32l0xx_hal.h"
 #include "utils.h"
 #include "memory.h"
+#include "stdarg.h"
 
 #define log2(x) (log(x) / log(2))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
@@ -110,19 +111,23 @@ void _receive_interrupt(struct cc1101 *instance);
 
 void _transmit_interrupt(struct cc1101 *instance);
 
+void _switchToDefaultState(struct cc1101 *instance);
+
+uint8_t _waitFor(struct cc1101 *instance, int count, ...);
+
 struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi) {
     struct cc1101 *instance = malloc(sizeof(struct cc1101));
     instance->cs = cs;
     instance->gd0 = gd0;
     instance->gd2 = gd2;
     instance->currentState = STATE_IDLE;
-    instance->mod = MOD_2FSK;
-    instance->pktLenMode = PKT_LEN_MODE_FIXED;
-    instance->addrFilterMode = ADDR_FILTER_MODE_NONE;
+    instance->config.mod = MOD_2FSK;
+    instance->config.pktLenMode = PKT_LEN_MODE_FIXED;
+    instance->config.addrFilterMode = ADDR_FILTER_MODE_NONE;
+    instance->config.freq = 433.5;
+    instance->config.drate = 4.0;
+    instance->config.power = 0;
     instance->recvCallbackEn = 0;
-    instance->freq = 433.5;
-    instance->drate = 4.0;
-    instance->power = 0;
     instance->spi = hspi;
     instance->rxPckLen = 0;
     instance->rxPckLenProg = 0;
@@ -130,7 +135,7 @@ struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_Handle
     instance->rxFiFoThresSize = 0;
     instance->txPckLen = 0;
     instance->txPckLenProg = 0;
-
+    instance->defaultState = DEF_IDLE;
     memset(instance->rxBuf, 0, 255);
     memset(instance->txBuf, 0, 255);
 
@@ -174,11 +179,28 @@ enum CCStatus cc1101_begin(struct cc1101 *instance, enum CCModulation mod, float
 }
 
 
-void cc1101_setModulation(struct cc1101 *instance, enum CCModulation mod) {
-    instance->mod = mod;
-    _writeRegField(instance, CC1101_REG_MDMCFG2, (uint8_t) mod, 6, 4);
+void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config) {
+    //wait for idle
+    while (instance->trState != TX_STOP && instance->trState != RX_STOP) {
+        HAL_Delay(1);
+    }
 
-    cc1101_setOutputPower(instance, instance->power);
+    //lock
+    instance->trState = TRX_DISABLE;
+    instance->config = config;
+    _setState(instance, STATE_IDLE);
+
+    cc1101_setModulation(instance, instance->config.mod);
+    cc1101_setFrequency(instance, instance->config.freq);
+    cc1101_setOutputPower(instance, instance->config.power);
+    cc1101_setFrequencyDeviation(instance, instance->config.freqDev);
+    cc1101_setRxBandwidth(instance, instance->config.bandwidth);
+    cc1101_setPacketLengthMode(instance, PKT_LEN_MODE_VARIABLE, instance->config.packetMaxLen);
+
+}
+
+void cc1101_setModulation(struct cc1101 *instance, enum CCModulation mod) {
+    _writeRegField(instance, CC1101_REG_MDMCFG2, (uint8_t) mod, 6, 4);
 }
 
 enum CCStatus cc1101_setFrequency(struct cc1101 *instance, double freq) {
@@ -188,16 +210,12 @@ enum CCStatus cc1101_setFrequency(struct cc1101 *instance, double freq) {
         return STATUS_INVALID_PARAM;
     }
 
-    instance->freq = freq;
     _setState(instance, STATE_IDLE);
 
     uint32_t f = ((freq * 65536.0) / CC1101_CRYSTAL_FREQ);
     _writeReg(instance, CC1101_REG_FREQ0, f & 0xff);
     _writeReg(instance, CC1101_REG_FREQ1, (f >> 8) & 0xff);
     _writeReg(instance, CC1101_REG_FREQ2, (f >> 16) & 0xff);
-
-    cc1101_setOutputPower(instance, instance->power);
-
     return STATUS_OK;
 }
 
@@ -278,11 +296,9 @@ enum CCStatus cc1101_setDataRate(struct cc1101 *instance, double drate) {
             [MOD_MSK]     = {26.0, 500.0}
     };
 
-    if (drate < range[instance->mod][0] || drate > range[instance->mod][1]) {
+    if (drate < range[instance->config.mod][0] || drate > range[instance->config.mod][1]) {
         return STATUS_INVALID_PARAM;
     }
-
-    instance->drate = drate;
 
     uint32_t xosc = CC1101_CRYSTAL_FREQ * 1000;
     uint8_t e = log2((drate * (double) (1ULL << 20)) / xosc);
@@ -351,11 +367,11 @@ void cc1101_setOutputPower(struct cc1101 *instance, int8_t power) {
 
     uint8_t powerIdx, freqIdx;
 
-    if (instance->freq <= 348.0) {
+    if (instance->config.freq <= 348.0) {
         freqIdx = 0;
-    } else if (instance->freq <= 464.0) {
+    } else if (instance->config.freq <= 464.0) {
         freqIdx = 1;
-    } else if (instance->freq <= 855.0) {
+    } else if (instance->config.freq <= 855.0) {
         freqIdx = 2;
     } else {
         freqIdx = 3;
@@ -379,9 +395,8 @@ void cc1101_setOutputPower(struct cc1101 *instance, int8_t power) {
         powerIdx = 7;
     }
 
-    instance->power = power;
 
-    if (instance->mod == MOD_ASK_OOK) {
+    if (instance->config.mod == MOD_ASK_OOK) {
         /* No shaping. Use only the first 2 entries in the power table. */
         uint8_t data[2] = {0x00, powers[freqIdx][powerIdx]};
         _writeRegBurst(instance, CC1101_REG_PATABLE, data, sizeof(data));
@@ -438,7 +453,7 @@ void cc1101_setSyncMode(struct cc1101 *instance, enum CCSyncMode mode) {
 }
 
 void cc1101_setPacketLengthMode(struct cc1101 *instance, enum CCPacketLengthMode mode, uint8_t length) {
-    instance->pktLenMode = mode;
+    instance->config.pktLenMode = mode;
     _writeRegField(instance, CC1101_REG_PKTCTRL0, (uint8_t) mode, 1, 0);
     _writeReg(instance, CC1101_REG_PKTLEN, length);
 }
@@ -451,133 +466,174 @@ void cc1101_setCrc(struct cc1101 *instance, uint8_t enable) {
     _writeRegField(instance, CC1101_REG_PKTCTRL0, (uint8_t) enable, 2, 2);
 }
 
-enum CCStatus cc1101_transmit(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
+enum CCStatus cc1101_transmit_async(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
     cc1101_start_transmit(instance);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
-    instance->trState = TX_START;
 
     uint8_t bytesSent = 0;
 
     if (length > 254) {
         return STATUS_LENGTH_TOO_BIG;
     }
+    if (length < CC1101_FIFO_SIZE) {
+        //transmit in sync mode
+        cc1101_transmit_sync(instance, data, length, 0);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
+        return STATUS_OK;
+    }
+
+    instance->trState = TX_START;
+
     //copy data to transmit buffer
     memcpy(instance->txBuf, data, length);
     instance->txPckLen = length;
     instance->txPckLenProg = 0;
 
-//    _writeReg(instance, CC1101_REG_PKTLEN, (uint8_t) length);
+    uint8_t bytesToWrite = min(CC1101_FIFO_SIZE - 1, length);
     _writeReg(instance, CC1101_REG_FIFO, (uint8_t) length);
-    uint8_t bytesToWrite = min(CC1101_FIFO_SIZE - 3, length);
     _writeRegBurst(instance, CC1101_REG_FIFO, data, bytesToWrite);
     instance->txPckLenProg += bytesToWrite;
 
     _setState(instance, STATE_TX);
     return STATUS_OK;
+}
 
-
-    switch (instance->pktLenMode) {
-        case PKT_LEN_MODE_FIXED:
-            _writeReg(instance, CC1101_REG_PKTLEN, (uint8_t) length);
-            break;
-        case PKT_LEN_MODE_VARIABLE:
-            _writeReg(instance, CC1101_REG_FIFO, (uint8_t) length);
-            bytesSent++;
-            break;
+enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
+    //wait for idle
+    while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
+//    while (instance->trState != TX_STOP && instance->trState != RX_STOP && instance->trState != RX_PRE_END) {
+        HAL_Delay(1);
     }
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
+    //save state
+    enum CCTRXState prevState = instance->trState;
+    //lock
+    instance->trState = TRX_DISABLE;
 
-    if (instance->addrFilterMode != ADDR_FILTER_MODE_NONE) {
-        _writeReg(instance, CC1101_REG_FIFO, addr);
-        bytesSent++;
-    }
+    instance->txPckLen = length;
+    instance->txPckLenProg = 0;
 
-    uint8_t l = min((uint8_t) length, (uint8_t) (CC1101_FIFO_SIZE - bytesSent));
-    bytesSent += l;
+    uint8_t bytesToWrite = min(CC1101_FIFO_SIZE - 1, length);
+    _writeReg(instance, CC1101_REG_FIFO, (uint8_t) length);
+    _writeRegBurst(instance, CC1101_REG_FIFO, data, bytesToWrite);
+    instance->txPckLenProg += bytesToWrite;
+
+    _setState(instance, STATE_IDLE);
+
 
     _setState(instance, STATE_TX);
 
-    while (bytesSent < length) {
-        uint8_t uint8_tsInFifo = _readRegField(instance, CC1101_REG_TXbytes, 6, 0);
+    while (instance->txPckLenProg < length) {
+        uint8_t bytesInfifo = _readRegField(instance, CC1101_REG_TXbytes, 6, 0);
 
-        if (uint8_tsInFifo < (CC1101_FIFO_SIZE - 1)) {
-            uint8_t uint8_tsToWrite = min((uint8_t) (length - bytesSent),
-                                          (uint8_t) (CC1101_FIFO_SIZE - uint8_tsInFifo));
-            _writeRegBurst(instance, CC1101_REG_FIFO, data + bytesSent, uint8_tsToWrite);
-            bytesSent += uint8_tsToWrite;
+        if (bytesInfifo < (CC1101_FIFO_SIZE - 1)) {
+            bytesToWrite = min((uint8_t) (length - instance->txPckLenProg),
+                               (uint8_t) (CC1101_FIFO_SIZE - bytesInfifo));
+            _writeRegBurst(instance, CC1101_REG_FIFO, data + instance->txPckLenProg, bytesToWrite);
+            instance->txPckLenProg += bytesToWrite;
         }
     }
 
     while (_getState(instance) != STATE_IDLE) {
         delay_micros(50);
     }
-    _flushRxBuffer(instance);
-    instance->trState = RX_END;
-    _setState(instance, STATE_RX);
 
-    cc1101_start_receive(instance);
+    _flushRxBuffer(instance);
+    _flushTxBuffer(instance);
+    instance->trState = prevState;
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
+    _switchToDefaultState(instance);
     return STATUS_OK;
 }
 
-enum CCStatus cc1101_receive(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
+int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t *rssi, uint8_t *lq,
+                            uint32_t timeout) {
+    //wait for idle
+    while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
+//        while (instance->trState != TX_STOP && instance->trState != RX_STOP && instance->trState != RX_PRE_END) {
+        HAL_Delay(1);
+    }
+    //save state
+    enum CCTRXState prevState = instance->trState;
+    //lock
+    instance->trState = TRX_DISABLE;
+
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, 1);
+    _writeReg(instance, CC1101_REG_IOCFG2, 6);
+
     if (length > 255) {
-        return STATUS_LENGTH_TOO_BIG;
+        return -1;
     }
     _setState(instance, STATE_IDLE);
+    delay_micros(500);
     _flushRxBuffer(instance);
+    delay_micros(500);
     _setState(instance, STATE_RX);
+    delay_micros(500);
 
     uint8_t pktLength = 0;
-    switch (instance->pktLenMode) {
-        case PKT_LEN_MODE_FIXED:
-            pktLength = _readReg(instance, CC1101_REG_PKTLEN);
-            break;
-        case PKT_LEN_MODE_VARIABLE:
-            /* Wait for length uint8_t. */
-            while (pktLength == 0) {
-                pktLength = _readReg(instance, CC1101_REG_FIFO);
-            }
-            break;
+    uint32_t time = 0;
+    while (!HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_15));
+    while (_readRegField(instance, CC1101_REG_RXbytes, 6, 0) != 0);
+    while (pktLength == 0) {
+        //idk why, but first read contains garbage
+        pktLength = _readReg(instance, CC1101_REG_FIFO);
+        pktLength = _readReg(instance, CC1101_REG_FIFO);
+
+        delay_micros(100);
+        time++;
+        if (time >= timeout) {
+            instance->trState = prevState;
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, 0);
+            _setState(instance, STATE_IDLE);
+            _flushRxBuffer(instance);
+            _switchToDefaultState(instance);
+            return -1;
+        }
     }
 
     if (pktLength > length) {
         return STATUS_LENGTH_TOO_SMALL;
     }
 
-    if (instance->addrFilterMode == ADDR_FILTER_MODE_CHECK) {
-        // TODO: To check.
-        (void) _readReg(instance, CC1101_REG_FIFO);
-    }
-
-    uint8_t uint8_tsInFifo = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
-    uint8_t uint8_tsRead = 0;
+    uint8_t bytesInFifo = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
+    uint8_t bytesRead = 0;
 
     /*
       For packet lengths less than 64 uint8_ts it is recommended to wait until
       the complete packet has been received before reading it out of the RX FIFO.
     */
     if (pktLength <= CC1101_PKT_MAX_SIZE) {
-        while (uint8_tsInFifo < pktLength) {
+        while (bytesInFifo < pktLength) {
             delay_micros(15 * 8);
-            uint8_tsInFifo = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
+            bytesInFifo = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
         }
     }
 
-    while (uint8_tsRead < pktLength) {
-        while (uint8_tsInFifo == 0) {
+    while (bytesRead < pktLength) {
+        while (bytesInFifo == 0) {
             delay_micros(15);
-            uint8_tsInFifo = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
+            bytesInFifo = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
         }
 
-        uint8_t uint8_tsToRead = min((uint8_t) (pktLength - uint8_tsRead), uint8_tsInFifo);
-        _readRegBurst(instance, CC1101_REG_FIFO, data + uint8_tsRead, uint8_tsToRead);
-        uint8_tsRead += uint8_tsToRead;
+        uint8_t bytesToRead = min((uint8_t) (pktLength - bytesRead), bytesInFifo);
+        _readRegBurst(instance, CC1101_REG_FIFO, data + bytesRead, bytesToRead);
+        bytesRead += bytesToRead;
     }
-
+    //packet contain rssi and lq values
+    *rssi = _readReg(instance, CC1101_REG_FIFO);
+    *lq = _readReg(instance, CC1101_REG_FIFO) & 0x7F;
+    _setState(instance, STATE_IDLE);
     while (_getState(instance) != STATE_IDLE) {
         delay_micros(50);
     }
+    _flushRxBuffer(instance);
 
-    return STATUS_OK;
+    //switch to default state
+    instance->trState = prevState;
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, 0);
+    _switchToDefaultState(instance);
+    return pktLength;
 }
 
 void
@@ -616,7 +672,7 @@ void cc1101_exti_callback_gd2(uint16_t gpio, void *arg) {
     }
 
     struct cc1101 *instance = (struct cc1101 *) arg;
-    if (instance->trState == RX_START) {
+    if (instance->trState == RX_START || instance->trState == RX_STOP) {
         if (instance->gd2 == gpio && instance->recvCallbackEn == 1) {
             _receive_interrupt(instance);
         }
@@ -664,7 +720,7 @@ void _receive_interrupt(struct cc1101 *instance) {
         //read entire buffer and end reception
         uint8_t leftToRead = instance->rxPckLen - instance->rxPckLenProg;
         bytesToRead = leftToRead;
-        instance->trState = RX_END;
+        instance->trState = RX_PRE_END;
     } else {
         //read that many bytes that the rest of the packet can trigger threshold
         uint8_t leftToRead = instance->rxPckLen - instance->rxPckLenProg;
@@ -677,7 +733,7 @@ void _receive_interrupt(struct cc1101 *instance) {
     enum CCState stat = _getState(instance);
 
     // if reception ended, reset state and call callback
-    if (instance->trState == RX_END) {
+    if (instance->trState == RX_PRE_END) {
         enum CCState state = _getState(instance);
         while (state != STATE_IDLE) {
             if (state == STATE_RXFIFO_OVERFLOW) {
@@ -691,7 +747,9 @@ void _receive_interrupt(struct cc1101 *instance) {
         uint8_t rssi = instance->rxBuf[instance->rxPckLen - 2];
         //mask MSB because it is indicating crc
         uint8_t lq = instance->rxBuf[instance->rxPckLen - 1] & 0x7F;
+
         instance->receive_callback(instance->rxBuf, instance->rxPckLen - 2, rssi, lq);
+        instance->trState = RX_END;
         //back to reception
         memset(instance->rxBuf, 0, 255);
         _flushRxBuffer(instance);
@@ -716,9 +774,13 @@ void _transmit_interrupt(struct cc1101 *instance) {
         uint8_t bytesToWrite = min(64 - bytesInfifo, instance->txPckLen - instance->txPckLenProg);
         _writeRegBurst(instance, CC1101_REG_FIFO, instance->txBuf + instance->txPckLenProg, bytesToWrite);
         instance->txPckLenProg += bytesToWrite;
+
+        // process TX_END only when gd2 de asserts (when packet is fully sent)
         return;
     }
     if (instance->trState == TX_END) {
+        HAL_Delay(2);
+
         //packet was fully sent
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
         instance->trState = TX_STOP;
@@ -811,11 +873,8 @@ void cc1101_start_receive(struct cc1101 *instance) {
         delay_micros(50);
     }
 
-    delay_micros(500);
     _flushRxBuffer(instance);
-    delay_micros(500);
     _flushTxBuffer(instance);
-    delay_micros(500);
 
     // set gd0 to assert when RX fifo is above threshold
     _writeReg(instance, CC1101_REG_IOCFG0, 0);
@@ -826,11 +885,13 @@ void cc1101_start_receive(struct cc1101 *instance) {
 
     instance->trState = RX_STOP;
     while (_getState(instance) != STATE_IDLE) {
-        delay_micros(50);
+        delay_micros(500);
     }
     _flushRxBuffer(instance);
-    _setState(instance, STATE_RX);
+    _flushTxBuffer(instance);
 
+    delay_micros(500);
+    _setState(instance, STATE_RX);
 }
 
 void cc1101_start_transmit(struct cc1101 *instance) {
@@ -855,7 +916,6 @@ void cc1101_start_transmit(struct cc1101 *instance) {
     _flushRxBuffer(instance);
     _flushTxBuffer(instance);
 }
-
 
 uint8_t _readRegField(struct cc1101 *instance, uint8_t addr, uint8_t hi, uint8_t lo) {
     return (_readReg(instance, addr) >> lo) & ((1 << (hi - lo + 1)) - 1);
@@ -1027,4 +1087,27 @@ void _chipDeselect(struct cc1101 *instance) {
 
 void _waitReady(struct cc1101 *instance) {
     while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6));
+}
+
+void _switchToDefaultState(struct cc1101 *instance) {
+    switch (instance->defaultState) {
+        case DEF_IDLE:
+            _setState(instance, STATE_IDLE);
+            break;
+        case DEF_RX:
+            cc1101_start_receive(instance);
+            break;
+    }
+}
+
+uint8_t _waitFor(struct cc1101 *instance, int count, ...) {
+    va_list ap;
+    va_start (ap, count);
+    uint8_t exp = 1;
+    for (int i = 0; i < count; ++i) {
+        enum CCTRXState trxState = va_arg(ap, uint32_t);
+        exp = exp & (instance->trState != trxState);
+    }
+    va_end(ap);
+    return exp;
 }
