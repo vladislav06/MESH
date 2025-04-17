@@ -39,27 +39,33 @@ void appMain(ADC_HandleTypeDef *hadc,
     * 1  909523256
     * 2  4128848
     */
-//    printf("%#08lX\r\n", HAL_GetUIDw2());
-
+    printf("%#08lX\r\n", HAL_GetUIDw2());
+    printf("%#08lX\r\n", HAL_GetUIDw2());
+    printf("%#08lX\r\n", HAL_GetUIDw2());
+    uint32_t id = HAL_GetUIDw2();
 
     // cc1101 initialisation
     cc = cc1101_create(GPIO_PIN_4, GPIO_PIN_14, GPIO_PIN_15, hspi1);
 
     // config cc1101
-    enum CCStatus status = cc1101_begin(cc, MOD_ASK_OOK, 433.8, 10);
+    struct CCconfig config = {
+            .mod=MOD_ASK_OOK,
+            .freq=433.8,
+            .drate=10,
+            .power=10,
+            .pktLenMode=PKT_LEN_MODE_VARIABLE,
+            .packetMaxLen=255,
+            .addrFilterMode=ADDR_FILTER_MODE_NONE,
+            .syncMode=SYNC_MODE_16_16,
+            .syncWord=0x6996,
+            .bandwidth=0,
+            .crc=false,
+            .preambleLen=16,
+    };
+    enum CCStatus status = cc1101_begin(cc, config);
     if (status == STATUS_CHIP_NOT_FOUND) {
         printf("STATUS_CHIP_NOT_FOUND\r\n");
     }
-    cc1101_setModulation(cc, MOD_ASK_OOK);
-    cc1101_setFrequency(cc, 433.8);
-    cc1101_setDataRate(cc, 10);
-    cc1101_setOutputPower(cc, 10);
-    cc1101_setPacketLengthMode(cc, PKT_LEN_MODE_VARIABLE, 255);
-    cc1101_setAddressFilteringMode(cc, ADDR_FILTER_MODE_NONE);
-    cc1101_setPreambleLength(cc, 16);
-    cc1101_setSyncWord(cc, 0x6996);
-    cc1101_setSyncMode(cc, SYNC_MODE_16_16);
-    cc1101_setCrc(cc, false);
 
     //register EXTI callback
     interrupts[0].arg = cc;
@@ -73,19 +79,25 @@ void appMain(ADC_HandleTypeDef *hadc,
     interrupts[1].gpio = GPIO_PIN_15;
 
     cc->trState = RX_STOP;
+    cc->defaultState = DEF_RX;
     enableInterrupts = 1;
     // receiver
     uint32_t uid = HAL_GetUIDw2();
 
+    switch (uid) {
+        case 0x3F004D:
 
-    uint8_t transmit[256];
-    uint8_t size = sprintf(transmit,
-                           "123 %d",
-                           n);
-    cc1101_transmit_sync(cc, transmit, size + 1, 0);
+            receiver();
 
-//    cc1101_receiveCallback(cc, on_receive);
-//    cc1101_start_receive(cc);
+            break;
+        case 0x3C004C:
+        case 0X280050:
+            transmitter();
+            break;
+
+    }
+
+
 
 //
 //    int n = 0;
@@ -115,28 +127,29 @@ void appMain(ADC_HandleTypeDef *hadc,
     uint8_t data[256] = {0};
     uint8_t rssi;
     uint8_t lq;
-    while (1) {
-        uint8_t len = cc1101_receive_sync(cc, data, 255, &rssi, &lq, 1000);
-        if (len > 0) {            printf("received %d:", len);
-            for (int i = 0; i < len; i++) {
-                printf("%c", data[i]);
-            }
-            printf(" rssi: %d, lq: %d", rssi, lq);
-            memset(data, 0, 256);
-            printf("\r\n");
-        }
-        HAL_Delay(100);
-    }
 //    while (1) {
-//        HAL_GPIO_WritePin(GPIOA, D3, 1);
-//        uint8_t transmit[256];
-//        uint8_t size = sprintf(transmit,
-//                               "123 %d",
-//                               456);
-//        cc1101_transmit_async(cc, transmit, size + 1, 0);
-//        HAL_GPIO_WritePin(GPIOA, D3, 0);
+//        uint8_t len = cc1101_receive_sync(cc, data, 255, &rssi, &lq, 1000);
+//        if (len > 0) {
+//            printf("received %d:", len);
+//            for (int i = 0; i < len; i++) {
+//                printf("%c", data[i]);
+//            }
+//            printf(" rssi: %d, lq: %d", rssi, lq);
+//            memset(data, 0, 256);
+//            printf("\r\n");
+//        }
 //        HAL_Delay(100);
 //    }
+    while (1) {
+        HAL_GPIO_WritePin(GPIOA, D3, 1);
+        uint8_t transmit[256];
+        uint8_t size = sprintf(transmit,
+                               "123 %d",
+                               456);
+        cc1101_transmit_async(cc, transmit, size + 1, 0);
+        HAL_GPIO_WritePin(GPIOA, D3, 0);
+        HAL_Delay(100);
+    }
 //    if (uid == 0x280050) {
 //        receiver();
 //    }
@@ -169,10 +182,12 @@ void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
 
 void transmitter(void) {
     uint8_t transmit[40];
-    int n = 0;
+    n = 0;
     while (1) {
         HAL_GPIO_WritePin(GPIOA, D3, 1);
-        uint8_t size = sprintf(transmit, "%d", n);
+        uint8_t size = sprintf(transmit,
+                               "123123132123123132132132123132132132123132132123132132132132123132123132132132132132132132 %d",
+                               n);
         cc1101_transmit_async(cc, transmit, size + 1, 0);
         HAL_GPIO_WritePin(GPIOA, D3, 0);
         HAL_Delay(500);
@@ -184,15 +199,8 @@ void receiver(void) {
     cc1101_receiveCallback(cc, on_receive);
     cc1101_start_receive(cc);
     while (1) {
-//        uint8_t buf[10] = {0};
-//        cc1101_receive(cc, buf, 5, 0);
 
-//        for (int i = 0; i < 5; i++) {
-//            printf("%c", buf[i]);
-//        }
-//
-//        printf("\r\n");
-        HAL_Delay(1);
+        HAL_Delay(100);
     }
 }
 

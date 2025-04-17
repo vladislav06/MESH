@@ -101,6 +101,8 @@ struct CCconfig {
     int8_t power;
     float freqDev;
     float bandwidth;
+    uint8_t preambleLen;
+
 };
 
 
@@ -138,7 +140,7 @@ void cc1101_exti_callback_gd2(uint16_t gpio, void *arg);
 
 struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi);
 
-enum CCStatus cc1101_begin(struct cc1101 *instance, enum CCModulation mod, float freq, float drate);
+enum CCStatus cc1101_begin(struct cc1101 *instance, struct CCconfig);
 
 uint8_t cc1101_getChipPartNumber(struct cc1101 *instance);
 

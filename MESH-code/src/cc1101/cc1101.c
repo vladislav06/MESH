@@ -143,7 +143,7 @@ struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_Handle
     return instance;
 }
 
-enum CCStatus cc1101_begin(struct cc1101 *instance, enum CCModulation mod, float freq, float drate) {
+enum CCStatus cc1101_begin(struct cc1101 *instance, struct CCconfig config) {
     enum CCStatus status;
 
     _chipDeselect(instance);
@@ -159,17 +159,7 @@ enum CCStatus cc1101_begin(struct cc1101 *instance, enum CCModulation mod, float
 
     _setRegs(instance);
 
-    cc1101_setModulation(instance, mod);
-
-    if ((status = cc1101_setFrequency(instance, freq)) != STATUS_OK) {
-        return status;
-    }
-
-    if ((status = cc1101_setDataRate(instance, drate)) != STATUS_OK) {
-        return status;
-    }
-
-    cc1101_setOutputPower(instance, 0);
+    cc1101_setConfig(instance, config);
 
     _setState(instance, STATE_IDLE);
     _flushRxBuffer(instance);
@@ -181,7 +171,8 @@ enum CCStatus cc1101_begin(struct cc1101 *instance, enum CCModulation mod, float
 
 void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config) {
     //wait for idle
-    while (instance->trState != TX_STOP && instance->trState != RX_STOP) {
+    while (_waitFor(instance, 3, TX_STOP, RX_STOP, TRX_DISABLE)) {
+//    while (instance->trState != TX_STOP && instance->trState != RX_STOP) {
         HAL_Delay(1);
     }
 
@@ -193,9 +184,15 @@ void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config) {
     cc1101_setModulation(instance, instance->config.mod);
     cc1101_setFrequency(instance, instance->config.freq);
     cc1101_setOutputPower(instance, instance->config.power);
+    cc1101_setDataRate(instance, instance->config.drate);
+    cc1101_setAddressFilteringMode(instance, instance->config.addrFilterMode);
+    cc1101_setPreambleLength(instance, instance->config.preambleLen);
     cc1101_setFrequencyDeviation(instance, instance->config.freqDev);
     cc1101_setRxBandwidth(instance, instance->config.bandwidth);
-    cc1101_setPacketLengthMode(instance, PKT_LEN_MODE_VARIABLE, instance->config.packetMaxLen);
+    cc1101_setPacketLengthMode(instance, instance->config.pktLenMode, instance->config.packetMaxLen);
+    cc1101_setCrc(instance, instance->config.crc);
+    cc1101_setSyncWord(instance, instance->config.syncWord);
+    cc1101_setSyncMode(instance, instance->config.syncMode);
 
 }
 
@@ -862,6 +859,12 @@ uint8_t cc1101_getChipVersion(struct cc1101 *instance) {
 }
 
 void cc1101_start_receive(struct cc1101 *instance) {
+
+    //currently inside receive interrupt
+    if(instance->trState ==RX_PRE_END){
+        return;
+    }
+
     //wait for idle
     while (instance->trState != TX_STOP && instance->trState != RX_STOP) {
         HAL_Delay(1);
