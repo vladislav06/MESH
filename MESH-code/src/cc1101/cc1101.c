@@ -54,6 +54,7 @@
 #define CC1101_REG_MDMCFG1        0x13
 #define CC1101_REG_MDMCFG0        0x14
 #define CC1101_REG_DEVIATN        0x15
+#define CC1101_REG_FOCCFG         0x19
 #define CC1101_REG_FREQ0          0x0f
 
 #define CC1101_REG_MCSM2          0x16
@@ -994,6 +995,8 @@ void _setRegs(struct cc1101 *instance) {
     _writeRegField(instance, CC1101_REG_MCSM0, 1, 5, 4);
     _writeRegField(instance, CC1101_REG_MCSM1, 0, 1, 0);
     _writeRegField(instance, CC1101_REG_MCSM1, 0, 3, 2);
+
+//    _writeRegField(instance,CC1101_REG_FOCCFG,)
 
     // Disable data whitening.
     _writeRegField(instance, CC1101_REG_PKTCTRL0, 0, 6, 6);

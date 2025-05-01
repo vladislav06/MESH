@@ -13,20 +13,7 @@ struct Packet{
     float rssi;
     uint32_t checksum;
 };
-struct Interrupt {
-    void (*interrupt)(uint16_t gpio, void *arg);
 
-    void *arg;
-    uint16_t gpio;
-    GPIO_TypeDef *port;
-};
-
-static uint8_t enableInterrupts = 0;
-// Array of gpio external interrupt handlers
-static struct Interrupt interrupts[] = {
-        {},//place for cc1101 GD0 interrupt
-        {},//place for cc1101 GD2 interrupt
-};
 
 void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
@@ -41,10 +28,5 @@ void transmitter(void);
 
 void receiver(void);
 
-/**
- * Will call each exti in exti_callbacks
- * @param gpio
- */
-void HAL_GPIO_EXTI_Callback(uint16_t gpio);
 
 #endif //MESH_CODE_MAIN_H

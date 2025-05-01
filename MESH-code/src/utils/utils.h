@@ -7,6 +7,7 @@
 
 #include "stm32l0xx_hal.h"
 
+#define bool uint8_t
 #define true 1
 #define false 0
 

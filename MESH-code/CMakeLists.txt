@@ -51,6 +51,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/appMain.c
         src/cc1101/cc1101.c
         src/utils/utils.c
+        src/hw/hw.c
 )
 
 # Add include paths
@@ -59,6 +60,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         src/cc1101
         src
         src/utils
+        src/hw
 )
 
 # Add project symbols (macros)
