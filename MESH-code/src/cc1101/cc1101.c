@@ -64,12 +64,14 @@
 #define CC1101_REG_PATABLE        0x3e
 #define CC1101_REG_FIFO           0x3f
 
+
 /* CCStatus registers */
 #define CC1101_REG_PARTNUM        0x30
 #define CC1101_REG_VERSION        0x31
 #define CC1101_REG_TXbytes        0x3a
 #define CC1101_REG_RXbytes        0x3b
 #define CC1101_REG_RCCTRL0_STATUS 0x3d
+#define CC1101_REG_RSSI           0x34
 
 
 /* internal functions */
@@ -861,7 +863,7 @@ uint8_t cc1101_getChipVersion(struct cc1101 *instance) {
 void cc1101_start_receive(struct cc1101 *instance) {
 
     //currently inside receive interrupt
-    if(instance->trState ==RX_PRE_END){
+    if (instance->trState == RX_PRE_END) {
         return;
     }
 
@@ -918,6 +920,19 @@ void cc1101_start_transmit(struct cc1101 *instance) {
     }
     _flushRxBuffer(instance);
     _flushTxBuffer(instance);
+}
+
+uint8_t cc1101_getRssi(struct cc1101 *instance) {
+    return _readReg(instance, CC1101_REG_RSSI);
+}
+
+float cc1101_rssiToDbm(uint8_t rssi) {
+    int rssi_dec = rssi;
+    if (rssi_dec >= 128) {
+        return ((float) rssi_dec - 256.f) / 2 - 74;
+    } else {
+        return (float) rssi_dec / 2 - 74;
+    }
 }
 
 uint8_t _readRegField(struct cc1101 *instance, uint8_t addr, uint8_t hi, uint8_t lo) {

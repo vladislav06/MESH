@@ -8,6 +8,11 @@
 #include "stm32l0xx_hal.h"
 #include "cc1101.h"
 
+struct Packet{
+    uint32_t id;
+    float rssi;
+    uint32_t checksum;
+};
 struct Interrupt {
     void (*interrupt)(uint16_t gpio, void *arg);
 
@@ -30,6 +35,7 @@ void appMain(ADC_HandleTypeDef *hadc,
              UART_HandleTypeDef *huart2);
 
 void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);
+void on_receive_empty(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);
 
 void transmitter(void);
 

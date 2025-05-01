@@ -146,6 +146,9 @@ uint8_t cc1101_getChipPartNumber(struct cc1101 *instance);
 
 uint8_t cc1101_getChipVersion(struct cc1101 *instance);
 
+uint8_t cc1101_getRssi(struct cc1101 *instance);
+float cc1101_rssiToDbm(uint8_t rssi);
+
 void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config);
 
 void cc1101_setModulation(struct cc1101 *instance, enum CCModulation mod);
