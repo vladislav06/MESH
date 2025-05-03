@@ -49,7 +49,7 @@ void appMain(ADC_HandleTypeDef *hadc,
 
     // config cc1101
     struct CCconfig config = {
-            .mod=MOD_ASK_OOK,
+            .mod=MOD_GFSK,
             .freq=433.8,//Mhz
             .drate=1.2,//kbaud/s
             .power=10,
@@ -58,7 +58,7 @@ void appMain(ADC_HandleTypeDef *hadc,
             .addrFilterMode=ADDR_FILTER_MODE_NONE,
             .syncMode=SYNC_MODE_16_16,
             .syncWord=0x6996,
-            .bandwidth=60,//60Khz
+            .bandwidth=120,//60Khz
             .crc=false,
             .preambleLen=16,
     };

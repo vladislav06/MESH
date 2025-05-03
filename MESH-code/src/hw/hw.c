@@ -12,6 +12,7 @@ void hw_set_D3(uint8_t state) {
 }
 
 // interrupt stuff
+bool enableInterrupts = false;
 
 // Array of gpio external interrupt handlers
 static struct Interrupt interrupts[INTERRUPT_AMOUNT] = {0};
