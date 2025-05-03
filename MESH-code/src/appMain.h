@@ -19,6 +19,7 @@ void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
              TIM_HandleTypeDef *htim2,
              TIM_HandleTypeDef *htim6,
+             TIM_HandleTypeDef *htim21,
              UART_HandleTypeDef *huart2);
 
 void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);

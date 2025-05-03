@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "memory.h"
 #include "stdarg.h"
+#include "hw.h"
 
 #define log2(x) (log(x) / log(2))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
@@ -538,12 +539,83 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
         delay_micros(50);
     }
 
-    _flushRxBuffer(instance);
-    _flushTxBuffer(instance);
+//    _flushRxBuffer(instance);
+//    _flushTxBuffer(instance);
     instance->trState = prevState;
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
+//    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
     _switchToDefaultState(instance);
     return STATUS_OK;
+}
+
+uint16_t
+cc1101_measure_round_trip_master(struct cc1101 *instance, uint8_t *data, size_t length, TIM_HandleTypeDef *timer) {
+    //wait for idle
+    while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
+        HAL_Delay(1);
+    }
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
+
+    //save state
+    enum CCTRXState prevState = instance->trState;
+    //lock
+    instance->trState = TRX_DISABLE;
+
+    //save state
+    uint8_t MCSM1 = _readReg(instance, CC1101_REG_MCSM1);
+    uint8_t MCSM0 = _readReg(instance, CC1101_REG_MCSM0);
+    uint8_t IOCFG0 = _readReg(instance, CC1101_REG_IOCFG0);
+    uint8_t FIFOTHR = _readReg(instance, CC1101_REG_FIFOTHR);
+
+    //set required fields
+    //from TX straight to RX
+
+    _writeRegField(instance, CC1101_REG_MCSM1, 0, 3, 2);
+    _writeRegField(instance, CC1101_REG_MCSM1, 3, 1, 0);
+
+    _writeRegField(instance, CC1101_REG_MCSM0, 1, 5, 4);
+    enableInterrupts = 0;
+
+    //assert when end of the packet is reached
+    _writeReg(instance, CC1101_REG_IOCFG0, 1);
+
+    _writeRegField(instance, CC1101_REG_FIFOTHR, 7, 3, 0);
+
+    _setState(instance, STATE_IDLE);
+
+    _writeReg(instance, CC1101_REG_FIFO, (uint8_t) length);
+    _writeRegBurst(instance, CC1101_REG_FIFO, data, length);
+
+    //_setState(instance, STATE_TX);
+    _sendCmd(instance, CC1101_CMD_TX);
+    hw_set_D4(1);
+    timer->Instance->CNT = 0;
+    delay_micros(10000);
+    //wait for GD0
+//    while (!(GPIOC->IDR & GPIO_PIN_14)) {
+//    }
+    //round trip in timer ticks
+    uint16_t timerValue = timer->Instance->CNT;
+    hw_set_D4(0);
+
+    //revert all back
+    _setState(instance, STATE_IDLE);
+    while (_getState(instance) != STATE_IDLE) {
+        delay_micros(50);
+    }
+    _flushRxBuffer(instance);
+    _flushTxBuffer(instance);
+
+    _writeReg(instance, MCSM1, CC1101_REG_MCSM1);
+    _writeReg(instance, MCSM0, CC1101_REG_MCSM0);
+    _writeReg(instance, IOCFG0, CC1101_REG_IOCFG0);
+    _writeReg(instance, FIFOTHR, CC1101_REG_FIFOTHR);
+
+
+    instance->trState = prevState;
+    _switchToDefaultState(instance);
+
+
+    return timerValue;
 }
 
 int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t *rssi, uint8_t *lq,
@@ -935,6 +1007,76 @@ float cc1101_rssiToDbm(uint8_t rssi) {
         return (float) rssi_dec / 2 - 74;
     }
 }
+
+uint16_t cc1101_measure_round_trip_responder(struct cc1101 *instance) {
+    //wait for idle
+    while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
+        HAL_Delay(1);
+    }
+
+    //save state
+    enum CCTRXState prevState = instance->trState;
+    //lock
+    instance->trState = TRX_DISABLE;
+
+    //save state
+    uint8_t MCSM1 = _readReg(instance, CC1101_REG_MCSM1);
+    uint8_t MCSM0 = _readReg(instance, CC1101_REG_MCSM0);
+    uint8_t IOCFG0 = _readReg(instance, CC1101_REG_IOCFG0);
+    uint8_t FIFOTHR = _readReg(instance, CC1101_REG_FIFOTHR);
+
+    //set required fields
+    //from RX straight to TX
+    _writeRegField(instance, CC1101_REG_MCSM1, 2, 3, 2);
+    //from TX to IDLE
+    _writeRegField(instance, CC1101_REG_MCSM1, 0, 1, 0);
+
+    _writeRegField(instance, CC1101_REG_MCSM0, 1, 5, 4);
+    enableInterrupts = 0;
+
+    //assert when end of the packet is reached
+    _writeReg(instance, CC1101_REG_IOCFG0, 6);
+
+    _writeRegField(instance, CC1101_REG_FIFOTHR, 7, 3, 0);
+
+    _setState(instance, STATE_IDLE);
+
+    uint8_t data[10];
+
+    _writeReg(instance, CC1101_REG_FIFO, 1);
+    _writeRegBurst(instance, CC1101_REG_FIFO, data, 1);
+
+    hw_set_D4(1);
+    _sendCmd(instance, CC1101_CMD_RX);
+
+    //wait for GD0/ packet reception
+    while (!(GPIOC->IDR & GPIO_PIN_14)) {
+
+    }
+    _sendCmd(instance, CC1101_CMD_TX);
+
+    //wait for idle after rx
+    enum CCState state=_getState(instance);
+    while (state!= STATE_IDLE&&state!= STATE_RXFIFO_OVERFLOW) {
+        delay_micros(50);
+        state=_getState(instance);
+    }
+    hw_set_D4(0);
+
+    _flushRxBuffer(instance);
+    _flushTxBuffer(instance);
+
+    _writeReg(instance, MCSM1, CC1101_REG_MCSM1);
+    _writeReg(instance, MCSM0, CC1101_REG_MCSM0);
+    _writeReg(instance, IOCFG0, CC1101_REG_IOCFG0);
+    _writeReg(instance, FIFOTHR, CC1101_REG_FIFOTHR);
+
+
+    instance->trState = prevState;
+    _switchToDefaultState(instance);
+    return 0;
+}
+
 
 uint8_t _readRegField(struct cc1101 *instance, uint8_t addr, uint8_t hi, uint8_t lo) {
     return (_readReg(instance, addr) >> lo) & ((1 << (hi - lo + 1)) - 1);

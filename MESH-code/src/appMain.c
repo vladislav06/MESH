@@ -13,13 +13,16 @@
 
 static struct cc1101 *cc;
 static int n = 0;
+static TIM_HandleTypeDef *htimc;
 
 void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
              TIM_HandleTypeDef *htim2,
              TIM_HandleTypeDef *htim6,
+             TIM_HandleTypeDef *htim21,
              UART_HandleTypeDef *huart2) {
     //init utilities
+    htimc = htim21;
     utils_init(htim6);
     HAL_Delay(1000);
 
@@ -102,43 +105,34 @@ void transmitter(void) {
     cc->defaultState = DEF_RX;
     cc1101_receiveCallback(cc, on_receive_empty);
     cc1101_start_receive(cc);
-    struct Packet packet;
-    packet.id = HAL_GetUIDw2();
-    while (1) {
-        HAL_GPIO_WritePin(GPIOA, D3, 1);
-        packet.rssi = cc1101_rssiToDbm(cc1101_getRssi(cc));
-        packet.checksum = packet.id ^ *((uint32_t *) &packet.rssi);
-        cc1101_transmit_sync(cc, (uint8_t *) &packet, sizeof(struct Packet), 0);
-        HAL_GPIO_WritePin(GPIOA, D3, 0);
-        HAL_Delay(200);
+    uint8_t data[10] = {0};
+    HAL_TIM_Base_Start(htimc);
+    while(true){
+        int roundTrip = 0;
+        for (int i = 0; i < 10; i++) {
+            roundTrip += cc1101_measure_round_trip_master(cc, (uint8_t *) data, 1, htimc);
+            HAL_Delay(100);
+        }
+        roundTrip /= 10;
+        printf("roundTrip: %u\r\n", roundTrip);
+        HAL_Delay(500);
     }
+
 }
 
 void receiver(void) {
     cc->defaultState = DEF_RX;
-    cc1101_receiveCallback(cc, on_receive);
+//    cc1101_receiveCallback(cc, on_receive);
     cc1101_start_receive(cc);
     while (1) {
-        HAL_Delay(100);
+        cc1101_measure_round_trip_responder(cc);
     }
 }
 
 void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
-    HAL_GPIO_WritePin(GPIOA, D4, 1);
-    struct Packet packet = *((struct Packet *) data);
-    if (packet.checksum == (packet.id ^ *((uint32_t *) &packet.rssi))) {
-        float recRssi = cc1101_rssiToDbm(rssi);
-        int recrssidbni = floor(recRssi);
-        int recrssidbnf = floor((recRssi - recrssidbni) * 10);
-        printf("Received rssi: %3d.%1d | ", recrssidbni, recrssidbnf);
-        float prssi = packet.rssi;
-        int rssidbni = floor(prssi);
-        int rssidbnf = floor((prssi - rssidbni) * 10);
-        printf("id: %#08lX, rssi:%3d.%1d", packet.id, rssidbni, rssidbnf);
-        printf("\r\n");
-    }
-    //transmit answer
-    HAL_GPIO_WritePin(GPIOA, D4, 0);
+    hw_set_D3(1);
+    cc1101_transmit_sync(cc, (uint8_t *) data, 10, 0);
+    hw_set_D3(0);
 }
 
 void on_receive_empty(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
@@ -146,4 +140,7 @@ void on_receive_empty(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
     UNUSED(len);
     UNUSED(rssi);
     UNUSED(lq);
+    HAL_TIM_Base_Stop(htimc);
+    printf("CNT: %lu", htimc->Instance->CNT);
+    htimc->Instance->CNT = 0;
 }

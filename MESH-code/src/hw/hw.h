@@ -24,7 +24,7 @@ struct Interrupt {
     uint16_t gpio;
 };
 
- extern bool enableInterrupts;
+extern bool enableInterrupts;
 
 void register_interrupt(struct Interrupt interrupt, int place);
 

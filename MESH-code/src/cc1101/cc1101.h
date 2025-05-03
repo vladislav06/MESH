@@ -183,6 +183,8 @@ void cc1101_setSyncWord(struct cc1101 *instance, uint16_t sync);
 enum CCStatus cc1101_transmit_async(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr);
 
 enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr);
+uint16_t cc1101_measure_round_trip_master(struct cc1101 *instance, uint8_t *data, size_t length, TIM_HandleTypeDef * timer);
+uint16_t cc1101_measure_round_trip_responder(struct cc1101 *instance);
 
 int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t *rssi, uint8_t *lq,
                                   uint32_t timeout);
