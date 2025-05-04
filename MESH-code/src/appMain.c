@@ -59,7 +59,7 @@ void appMain(ADC_HandleTypeDef *hadc,
             .pktLenMode=PKT_LEN_MODE_VARIABLE,
             .packetMaxLen=255,
             .addrFilterMode=ADDR_FILTER_MODE_NONE,
-            .syncMode=SYNC_MODE_16_16,
+            .syncMode=SYNC_MODE_15_16,
             .syncWord=0x6996,
             .bandwidth=120,//60Khz
             .crc=false,
@@ -110,7 +110,7 @@ void transmitter(void) {
     while(true){
         int roundTrip = 0;
         for (int i = 0; i < 10; i++) {
-            roundTrip += cc1101_measure_round_trip_master(cc, (uint8_t *) data, 1, htimc);
+            roundTrip += cc1101_measure_round_trip_master(cc, htimc);
             HAL_Delay(100);
         }
         roundTrip /= 10;
@@ -125,6 +125,7 @@ void receiver(void) {
 //    cc1101_receiveCallback(cc, on_receive);
     cc1101_start_receive(cc);
     while (1) {
+
         cc1101_measure_round_trip_responder(cc);
     }
 }
