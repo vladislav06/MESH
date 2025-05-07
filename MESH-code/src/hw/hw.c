@@ -40,3 +40,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t gpio) {
     }
 }
 
+void hw_enable_ld(uint8_t state) {
+
+    HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9,!state);
+
+}
+

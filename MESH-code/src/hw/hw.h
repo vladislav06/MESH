@@ -14,6 +14,8 @@ void hw_set_D4(bool state);
 
 void hw_set_D3(bool state);
 
+void hw_enable_ld(bool state);
+
 // interrupt stuff
 #define INTERRUPT_AMOUNT 10
 
