@@ -62,7 +62,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/utils/utils.c
         src/hw/hw.c
         src/tinyprintf/printf-c.cc
-        src/expr/expr_test.c
+#        src/expr/expr_test.c
 )
 
 # Add include paths

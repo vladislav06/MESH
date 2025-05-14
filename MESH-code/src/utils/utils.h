@@ -12,7 +12,7 @@
 #define false 0
 
 
-void utils_init(TIM_HandleTypeDef *htim);
+void utils_init(TIM_HandleTypeDef *htim, UART_HandleTypeDef *uart);
 
 void delay_micros(uint16_t delay);
 

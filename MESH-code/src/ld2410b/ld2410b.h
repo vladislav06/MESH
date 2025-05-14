@@ -69,4 +69,6 @@ void ld2410b_debugOn(struct ld2410b *instance);
 
 void ld2410b_debugOff(struct ld2410b *instance);
 
+bool ld2410b_processACK(struct ld2410b *instance);
+
 #endif LD2410B_H

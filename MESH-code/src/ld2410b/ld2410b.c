@@ -8,11 +8,12 @@
 
 #include "utils.h"
 
+#define ld2410ConfigSize 4
+#define maxResponseSize ld2410ConfigSize * 2 + 30
 /// Packet constants:
 // Head and tail fixed parts
 const uint8_t ld2410HeadConfig[4] = {0xFD, 0xFC, 0xFB, 0xFA};
 const uint8_t ld2410TailConfig[4] = {4, 3, 2, 1};
-const uint8_t ld2410ConfigSize = 4;
 
 // Commands - first number always represents the size of the command, minus 2
 const uint8_t configEnable[6] = {4, 0, 0xFF, 0, 1, 0};
@@ -22,11 +23,11 @@ const uint8_t configDisableAckSize = 6;
 
 /// Utilities
 // Array for response - head, 30 max body, tail, headSize == tailSize
-const uint8_t maxResponseSize = ld2410ConfigSize * 2 + 30;
-static uint8_t response[maxResponseSize] = { 0 };
+static uint8_t response[maxResponseSize] = {0};
 
 /// Private functions
-void writeCommand(uint8_t *destination, const uint8_t *commandToWrite, const uint8_t size, const uint8_t startingPoint) {
+void
+writeCommand(uint8_t *destination, const uint8_t *commandToWrite, const uint8_t size, const uint8_t startingPoint) {
     memcpy(&destination[startingPoint], commandToWrite, size);
 }
 
@@ -49,7 +50,7 @@ bool responseEndsWith(const uint8_t *response, const uint8_t *endsWith, uint8_t 
         // endsWith is contained in elements 12..15 of the response (12,13,14,15 = 4 el).
         // So we need to start comparing from endPosition-endsWithLength+1 =>
         // 15 - 4 + 1 = 12 in our case.
-        if (endsWith[i] != response[endPosition-(endsWithLength+1)+i]) {
+        if (endsWith[i] != response[endPosition - (endsWithLength + 1) + i]) {
             return false;
         }
     }
@@ -78,35 +79,36 @@ bool processAck(struct ld2410b *instance, uint8_t *response) {
 
     // Checking whether we are given the length of the response -
     // stored in the first 2 bytes of the response after head
-    const uint16_t responseLength = response[ld2410ConfigSize] | response[ld2410ConfigSize+1] << 8;
+    const uint16_t responseLength = response[ld2410ConfigSize] | response[ld2410ConfigSize + 1] << 8;
 
     if (responseLength <= 0) {
         return false;
     }
 
     // Read the type of the command - two bytes after the response length
-    const uint16_t command = response[ld2410ConfigSize+2] | response[ld2410ConfigSize+3] << 8;
+    const uint16_t command = response[ld2410ConfigSize + 2] | response[ld2410ConfigSize + 3] << 8;
 
     switch (command) {
         case 0x1FF: // entered config mode
             instance->isConfig = true;
-            instance->version = response[ld2410ConfigSize+4] | (response[ld2410ConfigSize+5] << 8);
-        break;
+            instance->version = response[ld2410ConfigSize + 4] | (response[ld2410ConfigSize + 5] << 8);
+            break;
 
         case 0x1FE: // exited config mode
             instance->isConfig = false;
-        break;
+            break;
 
-        // Invalid command type, return false
+            // Invalid command type, return false
         default:
             return false;
     }
+    memset(response, 0, maxResponseSize);
 
     return true;
 }
 
 /// Public functions
-struct ld2410b* ld2410b_create(UART_HandleTypeDef *uart) {
+struct ld2410b *ld2410b_create(UART_HandleTypeDef *uart) {
     struct ld2410b *instance = malloc(sizeof(struct ld2410b));
 
     instance->timeout = 2000;
@@ -165,15 +167,23 @@ uint8_t ld2410b_sendCommand(struct ld2410b *instance, const uint8_t *command) {
 
     // Write the command
     writeCommand(builtCommand, ld2410HeadConfig, ld2410ConfigSize,
-      0);
+                 0);
     writeCommand(builtCommand, command, commandSize,
-      ld2410ConfigSize);
+                 ld2410ConfigSize);
     writeCommand(builtCommand, ld2410TailConfig, ld2410ConfigSize,
-      ld2410ConfigSize + commandSize);
+                 ld2410ConfigSize + commandSize);
 
     HAL_UART_Transmit(instance->uart, command, totalSize, 100);
     free(builtCommand);
 
+    HAL_UART_Receive(instance->uart, response, maxResponseSize, instance->timeout);
+    // TODO: Check whether this delay is needed.
+    //HAL_Delay(5000);
+
+    return processAck(instance, response);
+}
+
+bool ld2410b_processACK(struct ld2410b *instance) {
     HAL_UART_Receive(instance->uart, response, maxResponseSize, instance->timeout);
     // TODO: Check whether this delay is needed.
     //HAL_Delay(5000);
