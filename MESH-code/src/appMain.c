@@ -4,6 +4,7 @@
 #include <math.h>
 #include <sys/unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include "appMain.h"
 #include "utils.h"
 #include "cc1101.h"
@@ -36,13 +37,14 @@ void appMain(ADC_HandleTypeDef *hadc,
 
 //    expr_test();
     char *s = "x*2**x**2**x**2**x";
-    struct expr_var_list vars = {0};
+//    struct expr_var_list vars = {0};
     static struct expr_func user_funcs[] = {
-            {NULL, NULL, NULL, 0},
+            {"", NULL, NULL, 0},
     };
-    struct expr *e = expr_create(s, strlen(s), &vars, user_funcs);
 
-    struct expr_var *varx = expr_var(&vars, "x", 1);
+    struct expr *e = expr_create(s, strlen(s),  user_funcs);
+
+    struct expr_var *varx = expr_var( "x", 1);
     varx->value = 1;
     if (e == NULL) {
         printf("FAIL: %s returned NULL\n", s);
@@ -51,7 +53,7 @@ void appMain(ADC_HandleTypeDef *hadc,
     float result = expr_eval(e);
     printf("result = %f\n", result);
 
-    expr_destroy(e, &vars);
+//    expr_destroy(e, &vars);
 
     mi = mallinfo();
     printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
