@@ -21,13 +21,85 @@ void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
              TIM_HandleTypeDef *htim2,
              TIM_HandleTypeDef *htim6,
-             UART_HandleTypeDef *huart2) {
+             UART_HandleTypeDef *huart2,
+             RNG_HandleTypeDef *hrng) {
 
     HAL_Delay(2000);
     printf("%#08lX\r\n", HAL_GetUIDw2());
+    HAL_Delay(2000);
+
     //    //init utilities
     hw_enable_ld(true);
     utils_init(htim6);
+
+    uint32_t *eepromStart = (uint32_t *) 0x08080000;
+
+//    printf("%#08X\r\n", *eepromStart);
+//    uint32_t value =  *eepromStart +1;
+//
+
+
+    uint32_t timeStart = 0;
+    uint32_t timeEnd = 0;
+    uint32_t dataToWrite[256];
+    uint32_t rn;
+    HAL_RNG_GenerateRandomNumber(hrng, &rn);
+    for (int i = 0; i < 256; i++) {
+        dataToWrite[i] = rn + i;
+        HAL_RNG_GenerateRandomNumber(hrng, &rn);
+    }
+
+    HAL_FLASHEx_DATAEEPROM_Unlock();
+    FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);
+
+//    FLASH_PageErase(0x08080000);
+    //erase eeprom
+    timeStart = HAL_GetTick();
+
+//    FLASH->PECR |= FLASH_PECR_ERASE | FLASH_PECR_DATA;
+//    for (int i = 0; i < 256; i++) {
+//        *(__IO uint32_t *) (eepromStart + i) = (uint32_t) 0;
+//    }
+//    __WFI(); /* (3) */
+//    FLASH->PECR &= ~(FLASH_PECR_ERASE | FLASH_PECR_DATA);
+    timeEnd = HAL_GetTick();
+    printf("erase take:%lu us\n", timeEnd - timeStart);
+
+
+    FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);
+
+    htim6->Instance->CNT = 0;
+//    timeStart = htim6->Instance->CNT;
+    timeStart = HAL_GetTick();
+//    memcpy(eepromStart, dataToWrite, 256*4);
+    struct mem {
+        uint32_t a;
+        uint32_t b;
+        uint32_t c;
+        uint32_t d;
+        uint32_t a1;
+        uint32_t b1;
+        uint32_t c1;
+        uint32_t d1;
+    };
+    for (int i = 0; i < 256 / 8; i++) {
+        *(__IO struct mem *) ((struct mem *) eepromStart + i) = ((struct mem *) dataToWrite)[i];
+    }
+//    timeEnd = htim6->Instance->CNT;
+    timeEnd = HAL_GetTick();
+
+    HAL_FLASHEx_DATAEEPROM_Lock();
+
+
+    printf("write take:%lu us\n", timeEnd - timeStart);
+    for (int i = 0; i < 256; i++) {
+        if (*(eepromStart + i) != dataToWrite[i]) {
+            printf("EEPROM contains %lX but correct value is %lX\r\n", *(eepromStart + i), dataToWrite[i]);
+        }
+    }
+
+
+
 //
 
     struct mallinfo mi = mallinfo();
@@ -42,9 +114,9 @@ void appMain(ADC_HandleTypeDef *hadc,
             {"", NULL, NULL, 0},
     };
 
-    struct expr *e = expr_create(s, strlen(s),  user_funcs);
+    struct expr *e = expr_create(s, strlen(s), user_funcs);
 
-    struct expr_var *varx = expr_var( "x", 1);
+    struct expr_var *varx = expr_var("x", 1);
     varx->value = 1;
     if (e == NULL) {
         printf("FAIL: %s returned NULL\n", s);
