@@ -62,6 +62,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/hw/hw.c
         src/tinyprintf/printf-c.cc
         src/expr/expr.c
+        src/eeprom/eeprom.c
 )
 
 # Add include paths
@@ -72,6 +73,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         src/utils
         src/hw
         src/expr
+        src/eeprom
 )
 
 # Add project symbols (macros)

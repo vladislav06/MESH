@@ -10,7 +10,7 @@
 #include "cc1101.h"
 #include "hw.h"
 #include "expr.h"
-
+#include "eeprom.h"
 #define D3 GPIO_PIN_15
 #define D4 GPIO_PIN_1
 
@@ -28,11 +28,10 @@ void appMain(ADC_HandleTypeDef *hadc,
     printf("%#08lX\r\n", HAL_GetUIDw2());
     HAL_Delay(2000);
 
-    //    //init utilities
+    //init utilities
     hw_enable_ld(true);
     utils_init(htim6);
 
-    uint32_t *eepromStart = (uint32_t *) 0x08080000;
 
 //    printf("%#08X\r\n", *eepromStart);
 //    uint32_t value =  *eepromStart +1;
@@ -44,57 +43,21 @@ void appMain(ADC_HandleTypeDef *hadc,
     uint32_t dataToWrite[256];
     uint32_t rn;
     HAL_RNG_GenerateRandomNumber(hrng, &rn);
+
     for (int i = 0; i < 256; i++) {
         dataToWrite[i] = rn + i;
         HAL_RNG_GenerateRandomNumber(hrng, &rn);
     }
 
-    HAL_FLASHEx_DATAEEPROM_Unlock();
-    FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);
-
-//    FLASH_PageErase(0x08080000);
-    //erase eeprom
     timeStart = HAL_GetTick();
-
-//    FLASH->PECR |= FLASH_PECR_ERASE | FLASH_PECR_DATA;
-//    for (int i = 0; i < 256; i++) {
-//        *(__IO uint32_t *) (eepromStart + i) = (uint32_t) 0;
-//    }
-//    __WFI(); /* (3) */
-//    FLASH->PECR &= ~(FLASH_PECR_ERASE | FLASH_PECR_DATA);
-    timeEnd = HAL_GetTick();
-    printf("erase take:%lu us\n", timeEnd - timeStart);
-
-
-    FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);
-
-    htim6->Instance->CNT = 0;
-//    timeStart = htim6->Instance->CNT;
-    timeStart = HAL_GetTick();
-//    memcpy(eepromStart, dataToWrite, 256*4);
-    struct mem {
-        uint32_t a;
-        uint32_t b;
-        uint32_t c;
-        uint32_t d;
-        uint32_t a1;
-        uint32_t b1;
-        uint32_t c1;
-        uint32_t d1;
-    };
-    for (int i = 0; i < 256 / 8; i++) {
-        *(__IO struct mem *) ((struct mem *) eepromStart + i) = ((struct mem *) dataToWrite)[i];
-    }
-//    timeEnd = htim6->Instance->CNT;
+    eeprom_store((uint8_t *) dataToWrite, 256 * 4);
     timeEnd = HAL_GetTick();
 
-    HAL_FLASHEx_DATAEEPROM_Lock();
+    printf("write take:%lu ms\n", timeEnd - timeStart);
 
-
-    printf("write take:%lu us\n", timeEnd - timeStart);
     for (int i = 0; i < 256; i++) {
-        if (*(eepromStart + i) != dataToWrite[i]) {
-            printf("EEPROM contains %lX but correct value is %lX\r\n", *(eepromStart + i), dataToWrite[i]);
+        if (*(((uint32_t*)EEPROM_DATA) + i) != dataToWrite[i]) {
+            printf("EEPROM contains %lX but correct value is %lX\r\n", *(((uint32_t*)EEPROM_DATA) + i) , dataToWrite[i]);
         }
     }
 
