@@ -10,6 +10,9 @@
 #define D3 GPIO_PIN_15
 #define D4 GPIO_PIN_1
 
+#define EEPROM_PTR 0x08080000
+#define EEPROM_SIZE 2048
+
 void hw_set_D4(bool state);
 
 void hw_set_D3(bool state);
@@ -26,7 +29,7 @@ struct Interrupt {
     uint16_t gpio;
 };
 
- extern bool enableInterrupts;
+extern bool enableInterrupts;
 
 void register_interrupt(struct Interrupt interrupt, int place);
 

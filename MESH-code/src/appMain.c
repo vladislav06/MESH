@@ -10,7 +10,7 @@
 #include "cc1101.h"
 #include "hw.h"
 #include "expr.h"
-
+#include "eeprom.h"
 #define D3 GPIO_PIN_15
 #define D4 GPIO_PIN_1
 
@@ -21,13 +21,48 @@ void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
              TIM_HandleTypeDef *htim2,
              TIM_HandleTypeDef *htim6,
-             UART_HandleTypeDef *huart2) {
+             UART_HandleTypeDef *huart2,
+             RNG_HandleTypeDef *hrng) {
 
     HAL_Delay(2000);
     printf("%#08lX\r\n", HAL_GetUIDw2());
-    //    //init utilities
+    HAL_Delay(2000);
+
+    //init utilities
     hw_enable_ld(true);
     utils_init(htim6);
+
+
+//    printf("%#08X\r\n", *eepromStart);
+//    uint32_t value =  *eepromStart +1;
+//
+
+
+    uint32_t timeStart = 0;
+    uint32_t timeEnd = 0;
+    uint32_t dataToWrite[256];
+    uint32_t rn;
+    HAL_RNG_GenerateRandomNumber(hrng, &rn);
+
+    for (int i = 0; i < 256; i++) {
+        dataToWrite[i] = rn + i;
+        HAL_RNG_GenerateRandomNumber(hrng, &rn);
+    }
+
+    timeStart = HAL_GetTick();
+    eeprom_store((uint8_t *) dataToWrite, 256 * 4);
+    timeEnd = HAL_GetTick();
+
+    printf("write take:%lu ms\n", timeEnd - timeStart);
+
+    for (int i = 0; i < 256; i++) {
+        if (*(((uint32_t*)EEPROM_DATA) + i) != dataToWrite[i]) {
+            printf("EEPROM contains %lX but correct value is %lX\r\n", *(((uint32_t*)EEPROM_DATA) + i) , dataToWrite[i]);
+        }
+    }
+
+
+
 //
 
     struct mallinfo mi = mallinfo();
@@ -42,9 +77,9 @@ void appMain(ADC_HandleTypeDef *hadc,
             {"", NULL, NULL, 0},
     };
 
-    struct expr *e = expr_create(s, strlen(s),  user_funcs);
+    struct expr *e = expr_create(s, strlen(s), user_funcs);
 
-    struct expr_var *varx = expr_var( "x", 1);
+    struct expr_var *varx = expr_var("x", 1);
     varx->value = 1;
     if (e == NULL) {
         printf("FAIL: %s returned NULL\n", s);
