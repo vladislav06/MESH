@@ -26,6 +26,8 @@ void eeprom_store(uint8_t *data, uint32_t size) {
     };
     uint32_t *eepromStart = (uint32_t *) EEPROM_PTR;
 
+    // this loop uses ldmia and stmia instructions to store multiple bytes(3*4) with 1 instruction,
+    // because flash is not read-while-write and the whole cpu waits for flash to be readable again
     for (uint32_t i = 0; i < size / 32; i++) {
         *(__IO struct mem *) ((struct mem *) eepromStart + i) = ((struct mem *) data)[i];
     }
