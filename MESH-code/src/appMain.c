@@ -15,6 +15,7 @@
 #include "expr.h"
 #include "routing.h"
 #include "wirelessComms.h"
+#include "routing.h"
 
 static struct cc1101 cc;
 static int n = 0;
@@ -86,27 +87,27 @@ void appMain(ADC_HandleTypeDef *hadc,
     printf("%#08lX\r\n", HAL_GetUIDw2());
     printf("%#08lX\r\n", HAL_GetUIDw2());
 //
-    uint8_t data_buffer[500] = {0};
-////    HAL_UART_Receive_DMA(huart2, data_buffer, 1000);
-
-    // transmitting 0 fixed bug
-    HAL_UART_Transmit(huart2, data_buffer, 1, 100);
+//    uint8_t data_buffer[500] = {0};
+//////    HAL_UART_Receive_DMA(huart2, data_buffer, 1000);
 //
-    uint8_t data_start[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01};
-//    uint8_t data_config[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x62, 0x00,  0x04, 0x03, 0x02, 0x01};
-    HAL_UART_Transmit(huart2, data_start, 14, 100);
-////    HAL_UART_Transmit(huart2, data_start, 14, 5000);
-//
-////    HAL_UART_Transmit(huart2, data_config, 12, 5000);
-////    uint8_t data_end[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
-////    HAL_UART_Transmit(huart2, data_end, 12, 5000);
-////    HAL_UART_Transmit(huart2, data_end, 12, 100);
-    HAL_UART_Receive(huart2, data_buffer, 20, 100);
-    HAL_Delay(5000);
-    for (int i = 0; i < 500; i++) {
-        printf("%x ", data_buffer[i]);
-    }
-    printf("\t\n");
+//    // transmitting 0 fixed bug
+//    HAL_UART_Transmit(huart2, data_buffer, 1, 100);
+////
+//    uint8_t data_start[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01};
+////    uint8_t data_config[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x62, 0x00,  0x04, 0x03, 0x02, 0x01};
+//    HAL_UART_Transmit(huart2, data_start, 14, 100);
+//////    HAL_UART_Transmit(huart2, data_start, 14, 5000);
+////
+//////    HAL_UART_Transmit(huart2, data_config, 12, 5000);
+//////    uint8_t data_end[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
+//////    HAL_UART_Transmit(huart2, data_end, 12, 5000);
+//////    HAL_UART_Transmit(huart2, data_end, 12, 100);
+//    HAL_UART_Receive(huart2, data_buffer, 20, 100);
+//    HAL_Delay(5000);
+//    for (int i = 0; i < 500; i++) {
+//        printf("%x ", data_buffer[i]);
+//    }
+//    printf("\t\n");
 ////    printf("s1:%d|s2:%d",s1);
 
 //    struct PacketARR packetArr;
@@ -156,6 +157,7 @@ void appMain(ADC_HandleTypeDef *hadc,
     register_interrupt(intr1, 1);
 
     cc.trState = RX_STOP;
+    cc.defaultState = DEF_RX;
     enableInterrupts = 1;
 //
 //    uint32_t uid = HAL_GetUIDw2();
@@ -175,15 +177,44 @@ void appMain(ADC_HandleTypeDef *hadc,
 
     cc1101_receiveCallback(&cc, on_receive);
 
-    // main loop
+    uint32_t counter = 0;
+    // main loop, runs at 10Hz
     while (true) {
+        uint32_t start = HAL_GetTick();
         // each 100ms
-        if (HAL_GetTick() % 100) {
+        if (HAL_GetTick() % 100 == 0) {
 
         }
         // each 1000ms / 1s
-        if (HAL_GetTick() % 1000) {
-
+        if (HAL_GetTick() % 10 == 0) {
+            // send discovery packet
+            struct PacketNRR packetNRR = {
+                    .header.magic = MAGIC,
+                    .header.sourceId = hw_id(),
+                    .header.destinationId = 0,
+                    .header.originalSource = hw_id(),
+                    .header.finalDestination = 0,
+                    .header.hopCount = 0,
+                    .header.packetType = NRR,
+                    .header.size = 0,
+            };
+            cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
+        }
+        // each 5000ms / 5s
+        if (counter % 50 == 0) {
+            printf("routing table:\n");
+            for (int i = 0; i < NEIGHBOUR_TABLE_SIZE; i++) {
+                printf("neighbourId: %d\n                   \n", neighbourTable[i].neighbourId);
+                for (int i = 0; i < DESTINATION_COUNT; i++) {
+                    printf(" %d |", neighbourTable[i].destinations[i].destinationId);
+                }
+                printf("\n");
+            }
+        }
+        counter++;
+        uint32_t end = HAL_GetTick();
+        if (end - start <100) {
+            HAL_Delay(100 - (end - start));
         }
     }
 }

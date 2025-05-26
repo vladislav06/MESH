@@ -41,9 +41,9 @@ void routing_processPacket(struct Packet *packet) {
     // table find if sourceId is less than max id and if is find perfect place so that entries are in id order
     // if table has empty places, still place in perfect spot, but do not delete any entries
     if (packet->sourceId > hw_id()) {
-        //search for place
+        //search for place from middle to the end
         for (int i = 5; i < NEIGHBOUR_TABLE_SIZE; i++) {
-            if (packet->sourceId < neighbourTable[i].neighbourId) {
+            if (packet->sourceId < neighbourTable[i].neighbourId || neighbourTable[i].neighbourId == 0) {
                 //replace
                 for (int n = i; n < NEIGHBOUR_TABLE_SIZE - 1; n++) {
                     neighbourTable[n] = neighbourTable[n + 1];
@@ -55,9 +55,9 @@ void routing_processPacket(struct Packet *packet) {
             }
         }
     } else if (packet->sourceId < hw_id()) {
-        //search for place
-        for (int i = 4; i >= 0; i++) {
-            if (packet->sourceId < neighbourTable[i].neighbourId) {
+        //search for place from middle to the start
+        for (int i = 4; i >= 0; i--) {
+            if (packet->sourceId < neighbourTable[i].neighbourId|| neighbourTable[i].neighbourId == 0) {
                 //replace
                 for (int n = 0; n < i; n++) {
                     neighbourTable[n] = neighbourTable[n + 1];

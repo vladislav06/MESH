@@ -131,6 +131,7 @@ struct cc1101 {
     uint8_t txPckLenProg;
     uint8_t txFiFoThresSize;
     uint8_t txBuf[256];
+    uint32_t lastOpTime;
 };
 
 

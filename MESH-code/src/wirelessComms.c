@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include "utils.h"
 
-static uint8_t responseBuffer[255];
+//static uint8_t responseBuffer[255];
 static struct cc1101 *cc;
 
 void wireless_comms_init(struct cc1101 *cc1101) {
@@ -40,7 +40,7 @@ void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
         HANDLE(CPRS, pck);
     }
     if (responseLen != 0) {
-        cc1101_transmit_sync(cc, responseBuffer, responseLen, 0);
+        cc1101_transmit_sync(cc, cc->txBuf, responseLen, 0);
     }
 }
 
@@ -51,7 +51,8 @@ uint8_t handle_NONE(struct Packet *pck) {
 
 uint8_t handle_NRR(struct Packet *pck) {
     //answer with NRP
-    struct PacketNRP *response = (struct PacketNRP *) responseBuffer;
+    // unaligned write fix!!
+    struct PacketNRP *response = (struct PacketNRP *) (cc->txBuf + 1);
     response->header.magic = MAGIC;
     response->header.sourceId = hw_id();
     response->header.destinationId = pck->sourceId;
@@ -60,10 +61,13 @@ uint8_t handle_NRR(struct Packet *pck) {
     response->header.hopCount = 0;
     response->header.packetType = NRP;
     response->header.size = 0;
+
+    printf("NRR received");
     return sizeof(struct PacketNRP);
 }
 
 uint8_t handle_NRP(struct Packet *pck) {
+    printf("NRP received");
     routing_processPacket(pck);
     return 0;
 }
@@ -86,7 +90,7 @@ uint8_t handle_CD(struct Packet *pck) {
         // resend
         uint16_t destination = routing_getRoute(pck->finalDestination);
 
-        struct PacketCD *response = (struct PacketCD *) responseBuffer;
+        struct PacketCD *response = (struct PacketCD *) (cc->txBuf + 1);
         response->header.magic = MAGIC;
         response->header.sourceId = hw_id();
         response->header.destinationId = destination;

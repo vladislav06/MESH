@@ -13,7 +13,6 @@ void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
              TIM_HandleTypeDef *htim2,
              TIM_HandleTypeDef *htim6,
-             UART_HandleTypeDef *huart2,
-             RNG_HandleTypeDef *hrng);
+             UART_HandleTypeDef *huart2);
 
 #endif //MESH_CODE_MAIN_H
