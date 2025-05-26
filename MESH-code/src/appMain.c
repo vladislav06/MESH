@@ -1,6 +1,8 @@
 //
 // Created by vm on 25.6.4.
 //
+#define DEBUG
+
 #include <math.h>
 #include <sys/unistd.h>
 #include <stdio.h>
@@ -9,12 +11,12 @@
 #include "utils.h"
 #include "cc1101.h"
 #include "hw.h"
+#include "protocol.h"
 #include "expr.h"
+#include "routing.h"
+#include "wirelessComms.h"
 
-#define D3 GPIO_PIN_15
-#define D4 GPIO_PIN_1
-
-static struct cc1101 *cc;
+static struct cc1101 cc;
 static int n = 0;
 
 void appMain(ADC_HandleTypeDef *hadc,
@@ -25,9 +27,10 @@ void appMain(ADC_HandleTypeDef *hadc,
 
     HAL_Delay(2000);
     printf("%#08lX\r\n", HAL_GetUIDw2());
-    //    //init utilities
+    // init utilities
     hw_enable_ld(true);
     utils_init(htim6);
+
 //
 
     struct mallinfo mi = mallinfo();
@@ -42,9 +45,9 @@ void appMain(ADC_HandleTypeDef *hadc,
             {"", NULL, NULL, 0},
     };
 
-    struct expr *e = expr_create(s, strlen(s),  user_funcs);
+    struct expr *e = expr_create(s, strlen(s), user_funcs);
 
-    struct expr_var *varx = expr_var( "x", 1);
+    struct expr_var *varx = expr_var("x", 1);
     varx->value = 1;
     if (e == NULL) {
         printf("FAIL: %s returned NULL\n", s);
@@ -98,7 +101,7 @@ void appMain(ADC_HandleTypeDef *hadc,
 ////    uint8_t data_end[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
 ////    HAL_UART_Transmit(huart2, data_end, 12, 5000);
 ////    HAL_UART_Transmit(huart2, data_end, 12, 100);
-    HAL_UART_Receive(huart2, data_buffer, 20, 10);
+    HAL_UART_Receive(huart2, data_buffer, 20, 100);
     HAL_Delay(5000);
     for (int i = 0; i < 500; i++) {
         printf("%x ", data_buffer[i]);
@@ -106,10 +109,13 @@ void appMain(ADC_HandleTypeDef *hadc,
     printf("\t\n");
 ////    printf("s1:%d|s2:%d",s1);
 
+//    struct PacketARR packetArr;
+//    packetArr.header.
+
 
 
     // cc1101 initialisation
-    cc = cc1101_create(GPIO_PIN_4, GPIO_PIN_14, GPIO_PIN_15, hspi1);
+    cc1101_create(&cc, GPIO_PIN_4, GPIO_PIN_14, GPIO_PIN_15, hspi1);
 
     // config cc1101
     struct CCconfig config = {
@@ -126,88 +132,58 @@ void appMain(ADC_HandleTypeDef *hadc,
             .crc=false,
             .preambleLen=16,
     };
-    enum CCStatus status = cc1101_begin(cc, config);
+    enum CCStatus status = cc1101_begin(&cc, config);
     if (status == STATUS_CHIP_NOT_FOUND) {
         printf("STATUS_CHIP_NOT_FOUND\r\n");
+        hw_set_D3(true);
+        hw_set_D4(true);
+        return;
     }
 
     //register EXTI callback
     struct Interrupt intr0 = {
             .interrupt=cc1101_exti_callback_gd0,
-            .arg=cc,
+            .arg=&cc,
             .gpio=GPIO_PIN_14,
     };
     struct Interrupt intr1 = {
             .interrupt=cc1101_exti_callback_gd2,
-            .arg=cc,
+            .arg=&cc,
             .gpio=GPIO_PIN_15,
     };
+
     register_interrupt(intr0, 0);
     register_interrupt(intr1, 1);
 
-    cc->trState = RX_STOP;
+    cc.trState = RX_STOP;
     enableInterrupts = 1;
+//
+//    uint32_t uid = HAL_GetUIDw2();
+//
+//    switch (uid) {
+//        case 0x3F004D:
+//            receiver();
+//            break;
+//        case 0x3C004C:
+//        case 0X280050:
+//            break;
+//    }
+//    transmitter();
 
-    uint32_t uid = HAL_GetUIDw2();
 
-    switch (uid) {
-        case 0x3F004D:
-            receiver();
-            break;
-        case 0x3C004C:
-        case 0X280050:
-            break;
+    wireless_comms_init(&cc);
+
+    cc1101_receiveCallback(&cc, on_receive);
+
+    // main loop
+    while (true) {
+        // each 100ms
+        if (HAL_GetTick() % 100) {
+
+        }
+        // each 1000ms / 1s
+        if (HAL_GetTick() % 1000) {
+
+        }
     }
-    transmitter();
-}
-
-
-void transmitter(void) {
-    cc->defaultState = DEF_RX;
-    cc1101_receiveCallback(cc, on_receive_empty);
-    cc1101_start_receive(cc);
-    struct Packet packet;
-    packet.id = HAL_GetUIDw2();
-    while (1) {
-        HAL_GPIO_WritePin(GPIOA, D3, 1);
-        packet.rssi = cc1101_rssiToDbm(cc1101_getRssi(cc));
-        packet.checksum = packet.id ^ *((uint32_t *) &packet.rssi);
-        cc1101_transmit_sync(cc, (uint8_t *) &packet, sizeof(struct Packet), 0);
-        HAL_GPIO_WritePin(GPIOA, D3, 0);
-        HAL_Delay(200);
-    }
-}
-
-void receiver(void) {
-    cc->defaultState = DEF_RX;
-    cc1101_receiveCallback(cc, on_receive);
-    cc1101_start_receive(cc);
-    while (1) {
-        HAL_Delay(100);
-    }
-}
-
-void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
-    HAL_GPIO_WritePin(GPIOA, D4, 1);
-    struct Packet packet = *((struct Packet *) data);
-    if (packet.checksum == (packet.id ^ *((uint32_t *) &packet.rssi))) {
-        float recRssi = cc1101_rssiToDbm(rssi);
-        int recrssidbni = floor(recRssi);
-        int recrssidbnf = floor((recRssi - recrssidbni) * 10);
-        printf("Received rssi: %3d.%1d | ", recrssidbni, recrssidbnf);
-        float prssi = packet.rssi;
-        int rssidbni = floor(prssi);
-        int rssidbnf = floor((prssi - rssidbni) * 10);
-        printf("id: %#08lX, rssi:%3d.%1d", packet.id, rssidbni, rssidbnf);
-        printf("\r\n");
-    }
-    //transmit answer
-    HAL_GPIO_WritePin(GPIOA, D4, 0);
-}
-
-void on_receive_empty(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
-    UNUSED(data);
-    UNUSED(len);
-    UNUSED(rssi);
-    UNUSED(lq);
 }

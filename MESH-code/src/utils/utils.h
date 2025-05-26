@@ -10,7 +10,11 @@
 #define bool uint8_t
 #define true 1
 #define false 0
-
+#ifdef DEBUG
+#define LOG(...) printf(__VA_ARGS__)
+#else
+#define LOG(...)
+#endif
 
 void utils_init(TIM_HandleTypeDef *htim);
 

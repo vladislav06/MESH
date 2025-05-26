@@ -118,8 +118,7 @@ void _switchToDefaultState(struct cc1101 *instance);
 
 uint8_t _waitFor(struct cc1101 *instance, int count, ...);
 
-struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi) {
-    struct cc1101 *instance = malloc(sizeof(struct cc1101));
+void cc1101_create(struct cc1101 *instance,uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi) {
     instance->cs = cs;
     instance->gd0 = gd0;
     instance->gd2 = gd2;
@@ -143,7 +142,7 @@ struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_Handle
     memset(instance->txBuf, 0, 255);
 
 
-    return instance;
+//    return instance;
 }
 
 enum CCStatus cc1101_begin(struct cc1101 *instance, struct CCconfig config) {

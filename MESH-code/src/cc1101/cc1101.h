@@ -138,7 +138,7 @@ void cc1101_exti_callback_gd0(uint16_t gpio, void *arg);
 
 void cc1101_exti_callback_gd2(uint16_t gpio, void *arg);
 
-struct cc1101 *cc1101_create(uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi);
+void cc1101_create(struct cc1101 *instance, uint16_t cs, uint16_t gd0, uint16_t gd2, SPI_HandleTypeDef *hspi);
 
 enum CCStatus cc1101_begin(struct cc1101 *instance, struct CCconfig);
 
@@ -147,6 +147,7 @@ uint8_t cc1101_getChipPartNumber(struct cc1101 *instance);
 uint8_t cc1101_getChipVersion(struct cc1101 *instance);
 
 uint8_t cc1101_getRssi(struct cc1101 *instance);
+
 float cc1101_rssiToDbm(uint8_t rssi);
 
 void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config);
@@ -185,7 +186,7 @@ enum CCStatus cc1101_transmit_async(struct cc1101 *instance, uint8_t *data, size
 enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr);
 
 int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t *rssi, uint8_t *lq,
-                                  uint32_t timeout);
+                            uint32_t timeout);
 
 void
 cc1101_receiveCallback(struct cc1101 *instance, void (*func)(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq));

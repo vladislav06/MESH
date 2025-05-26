@@ -32,10 +32,10 @@ enable_language(C ASM)
 
 #add_link_options( -u _printf_float)
 # use tinyprintf
-add_link_options(-Wl,--wrap,printf  -Wl,--wrap,fprintf  -Wl,--wrap,sprintf   -Wl,--wrap,asprintf
-        -Wl,--wrap,vprintf -Wl,--wrap,vfprintf -Wl,--wrap,vsprintf  -Wl,--wrap,vasprintf
-        -Wl,--wrap,puts    -Wl,--wrap,putchar  -Wl,--wrap,snprintf  -Wl,--wrap,fwrite
-        -Wl,--wrap,fputs   -Wl,--wrap,fputc    -Wl,--wrap,vsnprintf -Wl,--wrap,fflush
+add_link_options(-Wl,--wrap,printf -Wl,--wrap,fprintf -Wl,--wrap,sprintf -Wl,--wrap,asprintf
+        -Wl,--wrap,vprintf -Wl,--wrap,vfprintf -Wl,--wrap,vsprintf -Wl,--wrap,vasprintf
+        -Wl,--wrap,puts -Wl,--wrap,putchar -Wl,--wrap,snprintf -Wl,--wrap,fwrite
+        -Wl,--wrap,fputs -Wl,--wrap,fputc -Wl,--wrap,vsnprintf -Wl,--wrap,fflush
         -Wl,--wrap,fiprintf)
 
 # Core project settings
@@ -57,11 +57,15 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         # Add user sources here
         src/appMain.c
+        src/wirelessComms.c
+        src/actuator.c
         src/cc1101/cc1101.c
         src/utils/utils.c
         src/hw/hw.c
         src/tinyprintf/printf-c.cc
         src/expr/expr.c
+        src/protocol/routing.c
+        src/protocol/protocol.c
 )
 
 # Add include paths
@@ -72,6 +76,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         src/utils
         src/hw
         src/expr
+        src/protocol
 )
 
 # Add project symbols (macros)
