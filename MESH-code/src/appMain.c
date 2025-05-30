@@ -83,9 +83,9 @@ void appMain(ADC_HandleTypeDef *hadc,
 //    * 1  909523256
 //    * 2  4128848
 //    */
-    printf("%#08lX\r\n", HAL_GetUIDw2());
-    printf("%#08lX\r\n", HAL_GetUIDw2());
-    printf("%#08lX\r\n", HAL_GetUIDw2());
+    printf("%#X\r\n", hw_id());
+    printf("%#X\r\n", hw_id());
+    printf("%#X\r\n", hw_id());
 //
 //    uint8_t data_buffer[500] = {0};
 //////    HAL_UART_Receive_DMA(huart2, data_buffer, 1000);
@@ -176,6 +176,7 @@ void appMain(ADC_HandleTypeDef *hadc,
     wireless_comms_init(&cc);
 
     cc1101_receiveCallback(&cc, on_receive);
+    cc1101_start_receive(&cc);
 
     uint32_t counter = 0;
     // main loop, runs at 10Hz
@@ -186,7 +187,8 @@ void appMain(ADC_HandleTypeDef *hadc,
 
         }
         // each 1000ms / 1s
-        if (HAL_GetTick() % 10 == 0) {
+//        if (HAL_GetTick() % 10 == 0) {
+        if (false) {
             // send discovery packet
             struct PacketNRR packetNRR = {
                     .header.magic = MAGIC,
@@ -200,20 +202,32 @@ void appMain(ADC_HandleTypeDef *hadc,
             };
             cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
         }
+        if (HAL_GetTick() % 25 == 0) {
+
+            if (hw_id() == 0x3f4d) {
+                // send discovery packet
+                try_discover(0x474d);
+            }
+        }
+
         // each 5000ms / 5s
         if (counter % 50 == 0) {
+//        if (false) {
             printf("routing table:\n");
             for (int i = 0; i < NEIGHBOUR_TABLE_SIZE; i++) {
-                printf("neighbourId: %d\n                   \n", neighbourTable[i].neighbourId);
+                printf("neighbourId: %04x\n                   \n", neighbourTable[i].neighbourId);
                 for (int i = 0; i < DESTINATION_COUNT; i++) {
-                    printf(" %d |", neighbourTable[i].destinations[i].destinationId);
+                    printf(" %04x |", neighbourTable[i].destinations[i].destinationId);
                 }
                 printf("\n");
             }
+
+            memset(neighbourTable, 0, sizeof(struct NeighbourEntry) * NEIGHBOUR_TABLE_SIZE);
+
         }
         counter++;
         uint32_t end = HAL_GetTick();
-        if (end - start <100) {
+        if (end - start < 100) {
             HAL_Delay(100 - (end - start));
         }
     }

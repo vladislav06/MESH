@@ -47,6 +47,6 @@ void hw_enable_ld(uint8_t state) {
 }
 
 uint16_t hw_id(void) {
-    return HAL_GetUIDw2();
+    return ((HAL_GetUIDw2() & 0xff0000) >> 8) | (HAL_GetUIDw2() & 0xff);
 }
 

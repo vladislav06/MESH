@@ -173,6 +173,8 @@ enum CCStatus cc1101_begin(struct cc1101 *instance, struct CCconfig config) {
 
 void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config) {
     //wait for idle
+    instance->lastOpTime = HAL_GetTick();
+
     while (_waitFor(instance, 3, TX_STOP, RX_STOP, TRX_DISABLE)) {
 //    while (instance->trState != TX_STOP && instance->trState != RX_STOP) {
         HAL_Delay(1);
@@ -492,13 +494,14 @@ enum CCStatus cc1101_transmit_async(struct cc1101 *instance, uint8_t *data, size
     _writeReg(instance, CC1101_REG_FIFO, (uint8_t) length);
     _writeRegBurst(instance, CC1101_REG_FIFO, data, bytesToWrite);
     instance->txPckLenProg += bytesToWrite;
-    instance->lastOpTime = HAL_GetTick();
     _setState(instance, STATE_TX);
     return STATUS_OK;
 }
 
 enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
     //wait for idle
+    instance->lastOpTime = HAL_GetTick();
+
     while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
 //    while (instance->trState != TX_STOP && instance->trState != RX_STOP && instance->trState != RX_PRE_END) {
         HAL_Delay(1);
@@ -541,7 +544,6 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
     _flushTxBuffer(instance);
     instance->trState = prevState;
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
-    instance->lastOpTime = HAL_GetTick();
     _switchToDefaultState(instance);
     return STATUS_OK;
 }
@@ -549,6 +551,8 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
 int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t *rssi, uint8_t *lq,
                             uint32_t timeout) {
     //wait for idle
+    instance->lastOpTime = HAL_GetTick();
+
     while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
 //        while (instance->trState != TX_STOP && instance->trState != RX_STOP && instance->trState != RX_PRE_END) {
         HAL_Delay(1);
@@ -632,7 +636,6 @@ int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t lengt
     //switch to default state
     instance->trState = prevState;
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, 0);
-    instance->lastOpTime = HAL_GetTick();
     _switchToDefaultState(instance);
     return pktLength;
 }
@@ -761,7 +764,6 @@ void _receive_interrupt(struct cc1101 *instance) {
         _setState(instance, STATE_RX);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, 0);
         instance->trState = RX_STOP;
-        instance->lastOpTime = HAL_GetTick();
     }
 }
 
@@ -789,7 +791,6 @@ void _transmit_interrupt(struct cc1101 *instance) {
         instance->trState = TX_STOP;
 
         _setState(instance, STATE_IDLE);
-        instance->lastOpTime = HAL_GetTick();
         cc1101_start_receive(instance);
     }
 }

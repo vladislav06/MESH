@@ -461,13 +461,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+//uint8_t plugged = 0;
+
+
 int _write(int file, char *ptr, int len) {
     static uint8_t rc = USBD_OK;
-
-//    do {
-        rc = CDC_Transmit_FS(ptr, len);
-//        HAL_Delay(1);
-//    } while (USBD_BUSY == rc);
+//    if (plugged) {
+//        do {
+            rc = CDC_Transmit_FS(ptr, len);
+            HAL_Delay(1);
+//        } while (USBD_BUSY == rc);
+//    }
 
     if (USBD_FAIL == rc) {
         /// NOTE: Should never reach here.

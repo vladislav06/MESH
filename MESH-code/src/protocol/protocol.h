@@ -28,6 +28,10 @@ enum PacketType {
     CPR,
     // Configuration Part ResponS
     CPRS,
+    // Discovery ReQuest
+    DRQ,
+    // Discovery ResPonse
+    DRP,
 };
 
 
@@ -97,6 +101,20 @@ struct PacketCPRS {
     struct Packet header;
     uint16_t start;
     uint8_t data[224];
+};
+
+// Discovery ReQuest
+struct PacketDRQ {
+    struct Packet header;
+    uint16_t target;
+    uint16_t blacklisted;
+};
+
+// Discovery ResPonse
+struct PacketDRP {
+    struct Packet header;
+    uint16_t target;
+    uint16_t blacklisted;
 };
 
 bool isPacketValid(struct Packet *packet);

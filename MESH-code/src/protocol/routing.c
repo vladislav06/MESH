@@ -14,6 +14,11 @@ void routing_processPacket(struct Packet *packet) {
     // find neighbour in table
     for (int neighbour = 0; neighbour < NEIGHBOUR_TABLE_SIZE; neighbour++) {
         if (neighbourTable[neighbour].neighbourId == packet->sourceId) {
+
+            if (neighbourTable[neighbour].neighbourId == packet->originalSource) {
+                return;
+            }
+
             //check if destination isn't already saved
             for (int dest = 0; dest < DESTINATION_COUNT; dest++) {
                 if (neighbourTable[neighbour].destinations[dest].destinationId == packet->originalSource) {
@@ -51,13 +56,15 @@ void routing_processPacket(struct Packet *packet) {
                 neighbourTable[i].neighbourId = packet->sourceId;
                 neighbourTable[i].neighbourPlace = 0;
                 neighbourTable[i].neighbourSensorCh = 0;
-                memset(neighbourTable[i].destinations, 0, sizeof(struct Destination[5]));
+                memset(neighbourTable[i].destinations, 0, sizeof(struct Destination[DESTINATION_COUNT]));
+                neighbourTable[i].destinations[0].destinationId = packet->originalSource;
+                break;
             }
         }
     } else if (packet->sourceId < hw_id()) {
         //search for place from middle to the start
         for (int i = 4; i >= 0; i--) {
-            if (packet->sourceId < neighbourTable[i].neighbourId|| neighbourTable[i].neighbourId == 0) {
+            if (packet->sourceId < neighbourTable[i].neighbourId || neighbourTable[i].neighbourId == 0) {
                 //replace
                 for (int n = 0; n < i; n++) {
                     neighbourTable[n] = neighbourTable[n + 1];
@@ -65,7 +72,9 @@ void routing_processPacket(struct Packet *packet) {
                 neighbourTable[i].neighbourId = packet->sourceId;
                 neighbourTable[i].neighbourPlace = 0;
                 neighbourTable[i].neighbourSensorCh = 0;
-                memset(neighbourTable[i].destinations, 0, sizeof(struct Destination[5]));
+                memset(neighbourTable[i].destinations, 0, sizeof(struct Destination[DESTINATION_COUNT]));
+                neighbourTable[i].destinations[0].destinationId = packet->originalSource;
+                break;
             }
         }
     }
