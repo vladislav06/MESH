@@ -61,6 +61,7 @@
 #define CC1101_REG_MCSM1          0x17
 #define CC1101_REG_MCSM0          0x18
 #define CC1101_REG_FREND0         0x22  /* Front End TX Configuration */
+#define CC1101_REG_AGCCTRL1       0x1C
 
 #define CC1101_REG_PATABLE        0x3e
 #define CC1101_REG_FIFO           0x3f
@@ -495,6 +496,16 @@ enum CCStatus cc1101_transmit_async(struct cc1101 *instance, uint8_t *data, size
     _writeRegBurst(instance, CC1101_REG_FIFO, data, bytesToWrite);
     instance->txPckLenProg += bytesToWrite;
     _setState(instance, STATE_TX);
+
+    uint32_t time = HAL_GetTick();
+    //wait for state to be tx
+    while (_getState(instance) != STATE_TX) {
+        _setState(instance, STATE_TX);
+        // something is wrong, proceed with transmission
+        if (HAL_GetTick() - 1000 > time) {
+            break;
+        }
+    }
     return STATUS_OK;
 }
 
@@ -524,6 +535,16 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
 
 
     _setState(instance, STATE_TX);
+    uint32_t time = HAL_GetTick();
+    //wait for state to be tx
+    while (_getState(instance) != STATE_TX) {
+        _setState(instance, STATE_TX);
+        // something is wrong, proceed with transmission
+        if (HAL_GetTick() - 1000 > time) {
+            break;
+        }
+    }
+
 
     while (instance->txPckLenProg < length) {
         uint8_t bytesInfifo = _readRegField(instance, CC1101_REG_TXbytes, 6, 0);
@@ -998,8 +1019,12 @@ void _readRegBurst(struct cc1101 *instance, uint8_t addr, uint8_t *buff, size_t 
 void _setRegs(struct cc1101 *instance) {
     // Automatically calibrate when going from IDLE to RX or TX.
     _writeRegField(instance, CC1101_REG_MCSM0, 1, 5, 4);
+
+    _writeRegField(instance, CC1101_REG_MCSM1, 1, 5, 4);
     _writeRegField(instance, CC1101_REG_MCSM1, 0, 1, 0);
     _writeRegField(instance, CC1101_REG_MCSM1, 0, 3, 2);
+    _writeRegField(instance, CC1101_REG_AGCCTRL1, 0, 3, 2);
+
 
 //    _writeRegField(instance,CC1101_REG_FOCCFG,)
 

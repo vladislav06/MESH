@@ -239,7 +239,6 @@ uint8_t handle_DRP(struct Packet *pck) {
             response->blacklisted = pckDRP->header.originalSource;
 
             memset(&discoveryRequests[dra], 0, sizeof(struct DiscoveryRequest));
-            printf("source: %d | target: %d", pckDRP->header.sourceId, pckDRP->target);
             pckDRP->header.originalSource = pckDRP->target;
             routing_processPacket(pck);
             return sizeof(struct PacketDRP);

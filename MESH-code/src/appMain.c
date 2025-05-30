@@ -215,9 +215,9 @@ void appMain(ADC_HandleTypeDef *hadc,
 //        if (false) {
             printf("routing table:\n");
             for (int i = 0; i < NEIGHBOUR_TABLE_SIZE; i++) {
-                printf("neighbourId: %04x\n                   \n", neighbourTable[i].neighbourId);
-                for (int i = 0; i < DESTINATION_COUNT; i++) {
-                    printf(" %04x |", neighbourTable[i].destinations[i].destinationId);
+                printf("neighbourId: %04x        ", neighbourTable[i].neighbourId);
+                for (int j = 0; j < DESTINATION_COUNT; j++) {
+                    printf(" %04x |", neighbourTable[i].destinations[j].destinationId);
                 }
                 printf("\n");
             }
