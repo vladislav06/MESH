@@ -22,7 +22,11 @@ void wireless_comms_init(struct cc1101 *cc);
 
 void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);
 
-void try_discover(uint16_t target);
+void try_discover(uint16_t target, uint8_t place, uint8_t sensorCh);
+
+/// Will send CSR to all suitable nodes in routing table
+void try_subscribe(uint8_t place, uint8_t sensorCh, uint8_t dataCh);
+
 
 uint8_t handle_NONE(struct Packet *pck);
 
@@ -55,5 +59,9 @@ uint8_t handle_DRQ(struct Packet *pck);
 
 // Discovery ResPonse
 uint8_t handle_DRP(struct Packet *pck);
+
+// ACK
+uint8_t handle_ACK(struct Packet *pck);
+
 
 #endif //MESH_CODE_WIRELESSCOMS_H

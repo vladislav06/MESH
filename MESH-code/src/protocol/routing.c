@@ -57,7 +57,9 @@ void routing_processPacket(struct Packet *packet) {
                 neighbourTable[i].neighbourPlace = 0;
                 neighbourTable[i].neighbourSensorCh = 0;
                 memset(neighbourTable[i].destinations, 0, sizeof(struct Destination[DESTINATION_COUNT]));
-                neighbourTable[i].destinations[0].destinationId = packet->originalSource;
+                if (packet->sourceId != packet->originalSource) {
+                    neighbourTable[i].destinations[0].destinationId = packet->originalSource;
+                }
                 break;
             }
         }
@@ -73,7 +75,28 @@ void routing_processPacket(struct Packet *packet) {
                 neighbourTable[i].neighbourPlace = 0;
                 neighbourTable[i].neighbourSensorCh = 0;
                 memset(neighbourTable[i].destinations, 0, sizeof(struct Destination[DESTINATION_COUNT]));
-                neighbourTable[i].destinations[0].destinationId = packet->originalSource;
+                if (packet->sourceId != packet->originalSource) {
+                    neighbourTable[i].destinations[0].destinationId = packet->originalSource;
+                }
+                break;
+            }
+        }
+    }
+}
+
+void routing_processDRPPacket(struct PacketDRP *packet) {
+    // find device
+    for (int i = 0; i < NEIGHBOUR_TABLE_SIZE; i++) {
+        if (neighbourTable[i].neighbourId == packet->header.originalSource) {
+            //insert
+            neighbourTable[i].neighbourPlace = packet->place;
+            neighbourTable[i].neighbourSensorCh = packet->sensorCh;
+            break;
+        }
+        for (int n = 0; n < DESTINATION_COUNT; n++) {
+            if (neighbourTable[i].destinations[n].destinationId == packet->header.originalSource ) {
+                neighbourTable[i].destinations[n].sensorCh = packet->sensorCh;
+                neighbourTable[i].destinations[n].place = packet->place;
                 break;
             }
         }
@@ -87,18 +110,28 @@ void routing_processCDPacket(struct PacketCD *packet) {
             //insert
             neighbourTable[i].neighbourPlace = packet->place;
             neighbourTable[i].neighbourSensorCh = packet->sensorCh;
+            break;
         }
         for (int n = 0; n < DESTINATION_COUNT; n++) {
             if (neighbourTable[i].destinations[n].destinationId == packet->header.sourceId) {
                 neighbourTable[i].destinations[n].sensorCh = packet->sensorCh;
                 neighbourTable[i].destinations[n].place = packet->place;
+                break;
             }
         }
     }
 }
 
-uint16_t routing_getRoute(uint16_t destination) {
+uint16_t routing_getRouteById(uint16_t destination) {
+    for (int neighbour = 0; neighbour < NEIGHBOUR_TABLE_SIZE; neighbour++) {
+        if (neighbourTable[neighbour].neighbourId == destination) {
+            return destination;
+        }
+        for (int n = 0; n < DESTINATION_COUNT; n++) {
+            if (neighbourTable[neighbour].destinations[n].destinationId == destination) {
+                return neighbourTable[neighbour].neighbourId;
+            }
+        }
+    }
     return 0;
 }
-
-
