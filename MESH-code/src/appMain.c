@@ -81,15 +81,30 @@ void appMain(ADC_HandleTypeDef *hadc,
     printf("%#08lX\r\n", HAL_GetUIDw2());
     printf("%#08lX\r\n", HAL_GetUIDw2());
 
+    /// LD2410B Code
+    HAL_Delay(2000);    // TODO: Timeout for turning on does not function - spamming config enable in the loop works,
+                        // But is unrecommended.
+    struct ld2410b ld;
+    ld2410b_create(&ld, huart2);
+    ld2410b_debugOn(&ld);
+    ld2410b_configMode(&ld,true);
+    while (true) {
+        ld2410b_configMode(&ld,true);
+        HAL_Delay(1000);
+        //ld2410b_configMode(&ld,false);
+        //HAL_Delay(5000);
 
+        //ld2410b_toggleRangeRes(&ld);
+        //HAL_Delay(2000);
 
+        //ld2410b_processReport(&ld);
+        // HAL_Delay(1000);
 
-    struct ld2410b* ld = ld2410b_create(huart2);
-    ld2410b_debugOn(ld);
-    ld2410b_configMode(ld,true);
+        // HAL_Delay(15000);
+        // ld2410b_startBottomNoiseDetection(&ld);
 
-    while (true){
-        ld2410b_processACK(ld);
+        // ld2410b_processReport(&ld);
+        // HAL_Delay(1000);
     }
 
 //
