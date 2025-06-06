@@ -199,7 +199,7 @@ extern struct variables_t variables;
 //void expr_destroy(struct expr *e);
 void expr_destroy_expr();
 void expr_destroy_vars();
-        float expr_eval(struct expr *e);
+float expr_eval(struct expr *e);
 
 struct expr *expr_create(const char *str, size_t len,
                          struct expr_func *funcs);
