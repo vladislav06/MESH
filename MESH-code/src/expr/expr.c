@@ -30,8 +30,8 @@ struct macro_tokens_t {
     uint8_t len;
 };
 
-struct operations_t ops;
-struct args_t args;
+struct operations_t ops = {0};
+struct args_t args = {0};
 //struct macro_tokens_t mtks;
 
 
@@ -456,8 +456,6 @@ static struct expr expr_varref(struct expr_var *v) {
 }
 
 
-
-
 struct expr *expr_create(const char *str, size_t len,
                          struct expr_func *funcs) {
     float num;
@@ -740,24 +738,18 @@ struct expr *expr_create(const char *str, size_t len,
         }
     }
 
-    result = (struct expr *) calloc(1, sizeof(struct expr));
-    if (result != NULL) {
-        if (parsing.len == 0) {
-            result->type = OP_CONST;
-        } else {
-            *result = parsing_pop();
-        }
+    if (parsing.len > 0) {
+        result = &parsing.tokens[parsing.len - 1];
+    } else {
+        result = nullptr;
     }
 
-    int i, j;
-    struct expr e;
-    struct expr_arg a;
     cleanup:
-    memset(&parsing, 0, sizeof(struct parsing_t));
     memset(&ops, 0, sizeof(struct operations_t));
     memset(&args, 0, sizeof(struct args_t));
     return result;
 }
+
 void expr_destroy_expr() {
     memset(&tokens, 0, sizeof(struct tokens_t));
 }

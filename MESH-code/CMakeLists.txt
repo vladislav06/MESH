@@ -68,6 +68,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/eeprom/eeprom.c
         src/protocol/routing.c
         src/protocol/protocol.c
+        src/configuration/configurationLoader.c
 )
 
 # Add include paths

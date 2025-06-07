@@ -585,10 +585,10 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
     time = HAL_GetTick();
     while (_getState(instance) != STATE_IDLE) {
         delay_micros(50);
-//        if (HAL_GetTick() - 1000 > time) {
-//            _setState(instance, STATE_IDLE);
-//            break;
-//        }
+        if (HAL_GetTick() - 2000 > time) {
+            _setState(instance, STATE_IDLE);
+            break;
+        }
     }
 
     _flushRxBuffer(instance);
@@ -881,7 +881,7 @@ void _setState(struct cc1101 *instance, enum CCState state) {
     uint32_t time = HAL_GetTick();
     while (_getState(instance) != state) {
         delay_micros(100);
-        if (HAL_GetTick() - 1000 > time) {
+        if (HAL_GetTick() - 10 > time) {
             break;
         }
     }

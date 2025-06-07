@@ -17,6 +17,7 @@
 #include "wirelessComms.h"
 #include "routing.h"
 #include "sensor.h"
+#include "configuration/configurationLoader.h"
 
 static struct cc1101 cc;
 static int n = 0;
@@ -34,16 +35,16 @@ void appMain(ADC_HandleTypeDef *hadc,
     // init utilities
     hw_enable_ld(true);
     utils_init(htim6, hcrc, hrng);
-
+    loadConfigurationThruUSB();
 //
 
-    struct mallinfo mi = mallinfo();
-    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
-    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
-    printf("Total free space (fordblks):           %d\n", mi.fordblks);
+//    struct mallinfo mi = mallinfo();
+//    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
+//    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
+//    printf("Total free space (fordblks):           %d\n", mi.fordblks);
 
 //    expr_test();
-    char *s = "x*2**x**2**x**2**x";
+    char *s = "2+2";
 //    struct expr_var_list vars = {0};
     static struct expr_func user_funcs[] = {
             {"", NULL, NULL, 0},
@@ -58,14 +59,14 @@ void appMain(ADC_HandleTypeDef *hadc,
         return;
     }
     float result = expr_eval(e);
-    printf("result = %f\n", result);
+    printf("result = %d\n", (int) result);
 
 //    expr_destroy(e, &vars);
 
-    mi = mallinfo();
-    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
-    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
-    printf("Total free space (fordblks):           %d\n", mi.fordblks);
+//    mi = mallinfo();
+//    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
+//    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
+//    printf("Total free space (fordblks):           %d\n", mi.fordblks);
 
 
 //
@@ -190,10 +191,17 @@ void appMain(ADC_HandleTypeDef *hadc,
     while (true)
 //    {uint8_t rssi= cc1101_getRssi(&cc);float dbm = cc1101_rssiToDbm(rssi);printf("rssi: %d.%d\n",(int) dbm, (int) (dbm - ((int) dbm)) * 100 );}
     {
-        uint32_t start = HAL_GetTick();
-        // each 100ms
-        if (HAL_GetTick() % 100 == 0) {
 
+        uint32_t start = HAL_GetTick();
+        // each 500ms
+        if (HAL_GetTick() % 5 == 0) {
+            if (newDataIsAvailable()) {
+                for (uint32_t i = 0; i < rxLen; i++) {
+                    printf("%d ", rxBuf[i]);
+                }
+                printf("\n");
+                dataWasReceived();
+            }
         }
         // each 1000ms / 1s
         if (counter % 10 == 0) {
