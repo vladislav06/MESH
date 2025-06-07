@@ -19,6 +19,12 @@ enum TargetState {
     BACKGROUND_NOISE_DETECTION_FAIL
 };
 
+enum BottomNoiseState {
+    BOTTOM_NOISE_DETECTION_NOT_STARTED = 0,
+    BOTTOM_NOISE_DETECTION_IN_PROGRESS,
+    BOTTOM_NOISE_DETECTION_SUCCESS
+};
+
 /*
  * Structure for ld2410b.
  */
@@ -38,8 +44,10 @@ struct ld2410b {
 
     uint16_t detectionDistance;
 
-    uint8_t _debug;
-    uint8_t isConfig;
+    bool _debug;
+    bool isConfig;
+
+    enum BottomNoiseState bottomNoiseState;
 
     uint32_t version;
 

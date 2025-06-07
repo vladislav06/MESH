@@ -9,6 +9,8 @@
 #include "cc1101.h"
 #include "hw.h"
 //#include "expr.h"
+#include <string.h>
+
 #include "ld2410b.h"
 #define D3 GPIO_PIN_15
 #define D4 GPIO_PIN_1
@@ -82,54 +84,26 @@ void appMain(ADC_HandleTypeDef *hadc,
     printf("%#08lX\r\n", HAL_GetUIDw2());
 
     /// LD2410B Code
-    HAL_Delay(2000);    // TODO: Timeout for turning on does not function - spamming config enable in the loop works,
-                        // But is unrecommended.
     struct ld2410b ld;
     ld2410b_create(&ld, huart2);
     ld2410b_debugOn(&ld);
     ld2410b_configMode(&ld,true);
     while (true) {
-        ld2410b_configMode(&ld,true);
-        HAL_Delay(1000);
+        //ld2410b_configMode(&ld,true);
+        //HAL_Delay(1000);
+
         //ld2410b_configMode(&ld,false);
-        //HAL_Delay(5000);
+        //HAL_Delay(1000);
 
-        //ld2410b_toggleRangeRes(&ld);
-        //HAL_Delay(2000);
-
-        //ld2410b_processReport(&ld);
+        // ld2410b_toggleRangeRes(&ld);
         // HAL_Delay(1000);
 
-        // HAL_Delay(15000);
-        // ld2410b_startBottomNoiseDetection(&ld);
+        //HAL_Delay(15000);
+        ld2410b_startBottomNoiseDetection(&ld);
 
         // ld2410b_processReport(&ld);
         // HAL_Delay(1000);
     }
-
-//
-//    uint8_t data_buffer[500] = {0};
-////    HAL_UART_Receive_DMA(huart2, data_buffer, 1000);
-
-    // transmitting 0 fixed bug
-//    HAL_UART_Transmit(huart2, data_buffer, 1, 100);
-//
-//    uint8_t data_start[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01};
-//    uint8_t data_config[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x62, 0x00,  0x04, 0x03, 0x02, 0x01};
-//    HAL_UART_Transmit(huart2, data_start, 14, 100);
-////    HAL_UART_Transmit(huart2, data_start, 14, 5000);
-//
-////    HAL_UART_Transmit(huart2, data_config, 12, 5000);
-////    uint8_t data_end[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
-////    HAL_UART_Transmit(huart2, data_end, 12, 5000);
-////    HAL_UART_Transmit(huart2, data_end, 12, 100);
-//    HAL_UART_Receive(huart2, data_buffer, 20, 10);
-//    HAL_Delay(5000);
-//    for (int i = 0; i < 500; i++) {
-//        printf("%x ", data_buffer[i]);
-//    }
-//    printf("\t\n");
-////    printf("s1:%d|s2:%d",s1);
 
 
 
