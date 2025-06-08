@@ -15,7 +15,9 @@
 #include "wirelessComms.h"
 
 uint8_t placePosInEEPROM;
-struct expr *expression;
+struct expr* expression;
+uint16_t vars_array[10];
+uint16_t *vars = vars_array;
 
 /// Public functions
 void actuator_load_config() {
@@ -24,10 +26,14 @@ void actuator_load_config() {
     // 0 and 1 hold 0x6996 (garbage-saving purposes), 2 holds the placeCount
     const uint8_t placeCount = EEPROM_DATA[2];
 
+    // Reset inner variables
+    placePosInEEPROM = 0;
+    expr_destroy_expr();
+    memset(vars, 0, 10);
+
     // Iterating through the places
     uint16_t bytePos = 3;
     uint8_t skippedPlaceCount = 0;
-    placePosInEEPROM = 0;
     while (skippedPlaceCount < placeCount) {
         // Check whether this place is the one we want
         if (EEPROM_DATA[bytePos] == intendedPlace) {
@@ -85,4 +91,24 @@ void actuator_handle_CD(struct PacketCD *pck) {
     LOG("CD was received from:%d dataCh: %d place: %d from: %d  =  %d",
         pck->header.originalSource, pck->dataCh,
         pck->place, pck->sensorCh, pck->value);
+
+    // Iterate through places
+    uint16_t bytePos = placePosInEEPROM;
+    bytePos++;
+    const uint8_t usedChannelCount = EEPROM_DATA[bytePos];
+    for (int i = 0; i < usedChannelCount; i++) {
+        // Cast bytes to DataChannel
+        struct DataChannel *channel = (struct DataChannel *) &EEPROM_DATA[bytePos];
+        // If this packet's info matches what we expect
+        if (channel->dataCh == pck->dataCh &&
+            (channel->place == pck->place || channel->place==0) &&
+            (channel->sensorCh == pck->sensorCh || channel->sensorCh==0)) {
+            // Then use our inner array - at place i in usedChannels is the channel that matches
+            // i.e. channel that matches is at index 0 in usedChannels? then value for it is in vars at index 0, too
+                vars[i] = pck->value;
+                break;
+            }
+        // Keep iterating to find channel if not found yet
+        bytePos += sizeof(struct DataChannel);
+    }
 }

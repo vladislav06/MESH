@@ -8,6 +8,7 @@
 
 extern uint8_t placePosInEEPROM;
 extern struct expr* expression;
+extern uint16_t *vars;
 
 /*
  * Public functions for the ld2410b sensor.
