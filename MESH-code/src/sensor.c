@@ -3,6 +3,10 @@
 //
 
 #include "sensor.h"
+#include "protocol.h"
+#include "hw.h"
+#include "routing.h"
+#include "cc1101.h"
 
 // 1 by default
 uint8_t sensor_place = 1;
@@ -12,3 +16,27 @@ uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT] = {1, 2};
 
 
 struct Subscriber subscribers[SUBSCRIBER_COUNT] = {0};
+
+void sendData(struct cc1101 *cc, uint16_t value, uint8_t channel) {
+    uint8_t dataCh = sensor_dataChannels[channel];
+
+    for (int sub = 0; sub < SUBSCRIBER_COUNT; sub++) {
+        if (subscribers[sub].id != 0) {
+            struct PacketCD cd = {
+                    .header.sourceId=hw_id(),
+                    .header.originalSource=hw_id(),
+                    .header.finalDestination=subscribers[sub].id,
+                    .header.destinationId=routing_getRouteById(subscribers[sub].id),
+                    .header.packetType=CD,
+                    .header.magic=MAGIC,
+                    .header.size=PCK_SIZE(PacketCD),
+                    .dataCh=dataCh,
+                    .sensorCh=sensor_sensorCh,
+                    .place=sensor_place,
+                    .value=value,
+            };
+            calc_crc((struct Packet *) &cd);
+            cc1101_transmit_sync(cc, (uint8_t *) &cd, sizeof(struct PacketCD), 0);
+        }
+    }
+}

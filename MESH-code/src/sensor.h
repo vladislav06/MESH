@@ -6,6 +6,7 @@
 #define MESH_CODE_SENSOR_H
 
 #include "stdint.h"
+#include "cc1101.h"
 
 #define DATA_CHANNEL_COUNT 2
 #define SUBSCRIBER_COUNT 10
@@ -22,5 +23,7 @@ struct Subscriber {
 };
 
 extern struct Subscriber subscribers[SUBSCRIBER_COUNT];
+
+void sendData(struct cc1101 *cc, uint16_t value, uint8_t channel);
 
 #endif //MESH_CODE_SENSOR_H
