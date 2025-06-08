@@ -5,9 +5,12 @@
 
 static TIM_HandleTypeDef *delay_timer;
 
-void utils_init(TIM_HandleTypeDef *htim) {
+void utils_init(TIM_HandleTypeDef *htim, UART_HandleTypeDef *uart) {
     delay_timer = htim;
     HAL_TIM_Base_Start(delay_timer);
+    // init ld2410b sensor
+    uint8_t a = 0;
+    HAL_UART_Transmit(uart, &a, 1, 100);
 }
 
 void delay_micros(uint16_t delay) {

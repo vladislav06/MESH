@@ -464,10 +464,10 @@ static void MX_GPIO_Init(void)
 int _write(int file, char *ptr, int len) {
     static uint8_t rc = USBD_OK;
 
-//    do {
+    do {
         rc = CDC_Transmit_FS(ptr, len);
-//        HAL_Delay(1);
-//    } while (USBD_BUSY == rc);
+        HAL_Delay(1);
+    } while (USBD_BUSY == rc);
 
     if (USBD_FAIL == rc) {
         /// NOTE: Should never reach here.

@@ -60,6 +60,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/wirelessComms.c
         src/actuator.c
         src/cc1101/cc1101.c
+        src/ld2410b/ld2410b.c
         src/utils/utils.c
         src/hw/hw.c
         src/tinyprintf/printf-c.cc
@@ -73,6 +74,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         # Add user defined include paths
         src/cc1101
+        src/ld2410b
         src
         src/utils
         src/hw
