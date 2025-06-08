@@ -3,11 +3,11 @@
 //
 #include "hw.h"
 
-void hw_set_D4(uint8_t state) {
+void hw_set_D4(bool state) {
     HAL_GPIO_WritePin(GPIOA, D4, state);
 }
 
-void hw_set_D3(uint8_t state) {
+void hw_set_D3(bool state) {
     HAL_GPIO_WritePin(GPIOA, D3, state);
 }
 
@@ -40,13 +40,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t gpio) {
     }
 }
 
-void hw_enable_ld(uint8_t state) {
+void hw_enable_ld(bool state) {
 
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, !state);
 
 }
 
 uint16_t hw_id(void) {
-    return HAL_GetUIDw2();
+    return ((HAL_GetUIDw2() & 0xff0000) >> 8) | (HAL_GetUIDw2() & 0xff);
 }
 

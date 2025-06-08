@@ -16,6 +16,8 @@
 #include "routing.h"
 #include "wirelessComms.h"
 #include "routing.h"
+#include "sensor.h"
+#include "configuration/configurationLoader.h"
 
 static struct cc1101 cc;
 static int n = 0;
@@ -24,23 +26,25 @@ void appMain(ADC_HandleTypeDef *hadc,
              SPI_HandleTypeDef *hspi1,
              TIM_HandleTypeDef *htim2,
              TIM_HandleTypeDef *htim6,
-             UART_HandleTypeDef *huart2) {
+             UART_HandleTypeDef *huart2,
+             CRC_HandleTypeDef *hcrc,
+             RNG_HandleTypeDef *hrng) {
 
     HAL_Delay(2000);
     printf("%#08lX\r\n", HAL_GetUIDw2());
     // init utilities
     hw_enable_ld(true);
-    utils_init(htim6);
-
+    utils_init(htim6, hcrc, hrng);
+    loadConfigurationThruUSB();
 //
 
-    struct mallinfo mi = mallinfo();
-    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
-    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
-    printf("Total free space (fordblks):           %d\n", mi.fordblks);
+//    struct mallinfo mi = mallinfo();
+//    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
+//    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
+//    printf("Total free space (fordblks):           %d\n", mi.fordblks);
 
 //    expr_test();
-    char *s = "x*2**x**2**x**2**x";
+    char *s = "2+2";
 //    struct expr_var_list vars = {0};
     static struct expr_func user_funcs[] = {
             {"", NULL, NULL, 0},
@@ -55,14 +59,14 @@ void appMain(ADC_HandleTypeDef *hadc,
         return;
     }
     float result = expr_eval(e);
-    printf("result = %f\n", result);
+    printf("result = %d\n", (int) result);
 
 //    expr_destroy(e, &vars);
 
-    mi = mallinfo();
-    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
-    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
-    printf("Total free space (fordblks):           %d\n", mi.fordblks);
+//    mi = mallinfo();
+//    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
+//    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
+//    printf("Total free space (fordblks):           %d\n", mi.fordblks);
 
 
 //
@@ -83,9 +87,9 @@ void appMain(ADC_HandleTypeDef *hadc,
 //    * 1  909523256
 //    * 2  4128848
 //    */
-    printf("%#08lX\r\n", HAL_GetUIDw2());
-    printf("%#08lX\r\n", HAL_GetUIDw2());
-    printf("%#08lX\r\n", HAL_GetUIDw2());
+    printf("%#X\r\n", hw_id());
+    printf("%#X\r\n", hw_id());
+    printf("%#X\r\n", hw_id());
 //
 //    uint8_t data_buffer[500] = {0};
 //////    HAL_UART_Receive_DMA(huart2, data_buffer, 1000);
@@ -121,9 +125,9 @@ void appMain(ADC_HandleTypeDef *hadc,
     // config cc1101
     struct CCconfig config = {
             .mod=MOD_GFSK,
-            .freq=433.8,//Mhz
-            .drate=1.2,//kbaud/s
-            .power=10,
+            .freq=433.100,//Mhz
+            .drate=10,//kbaud/s
+            .power=-20,
             .pktLenMode=PKT_LEN_MODE_VARIABLE,
             .packetMaxLen=255,
             .addrFilterMode=ADDR_FILTER_MODE_NONE,
@@ -176,44 +180,108 @@ void appMain(ADC_HandleTypeDef *hadc,
     wireless_comms_init(&cc);
 
     cc1101_receiveCallback(&cc, on_receive);
+    cc1101_start_receive(&cc);
 
     uint32_t counter = 0;
+    if (hw_id() == 0x4f4d) {
+        sensor_place = 10;
+        sensor_sensorCh = 10;
+    }
     // main loop, runs at 10Hz
-    while (true) {
-        uint32_t start = HAL_GetTick();
-        // each 100ms
-        if (HAL_GetTick() % 100 == 0) {
+    while (true)
+//    {uint8_t rssi= cc1101_getRssi(&cc);float dbm = cc1101_rssiToDbm(rssi);printf("rssi: %d.%d\n",(int) dbm, (int) (dbm - ((int) dbm)) * 100 );}
+    {
 
+        uint32_t start = HAL_GetTick();
+        // each 500ms
+        if (HAL_GetTick() % 5 == 0) {
+            if (newDataIsAvailable()) {
+                for (uint32_t i = 0; i < rxLen; i++) {
+                    printf("%d ", rxBuf[i]);
+                }
+                printf("\n");
+                dataWasReceived();
+            }
         }
         // each 1000ms / 1s
-        if (HAL_GetTick() % 10 == 0) {
-            // send discovery packet
-            struct PacketNRR packetNRR = {
-                    .header.magic = MAGIC,
-                    .header.sourceId = hw_id(),
-                    .header.destinationId = 0,
-                    .header.originalSource = hw_id(),
-                    .header.finalDestination = 0,
-                    .header.hopCount = 0,
-                    .header.packetType = NRR,
-                    .header.size = 0,
-            };
-            cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
+        if (counter % 10 == 0) {
+            if (hw_id() == 0x474d) {
+//        if (false) {
+                // send discovery packet
+                struct PacketNRR packetNRR = {
+                        .header.magic = MAGIC,
+                        .header.sourceId = hw_id(),
+                        .header.destinationId = 0,
+                        .header.originalSource = hw_id(),
+                        .header.finalDestination = 0,
+                        .header.hopCount = 0,
+                        .header.packetType = NRR,
+                        .header.size = 0,
+                };
+                calc_crc((struct Packet *) &packetNRR);
+                cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
+            }
         }
+        if (counter % 30 == 0) {
+
+            if (hw_id() == 0x1d35
+                || hw_id() == 0x3c4c
+                || hw_id() == 0x2f33
+                    ) {
+                try_discover(0, 10, 10);
+                //CSR
+
+                // send discovery packet
+//                try_discover(0x4f4d, 0, 0);
+
+//                try_discover(0x3c4c);
+            }
+        }
+        if (counter % 30 == 15) {
+
+            if (hw_id() == 0x1d35
+                || hw_id() == 0x3c4c
+                || hw_id() == 0x2f33
+                    ) {
+//                try_discover(0, 10, 10);
+                //CSR
+
+                try_subscribe(10, 10, 1);
+
+
+                // send discovery packet
+//                try_discover(0x4f4d, 0, 0);
+
+//                try_discover(0x3c4c);
+            }
+        }
+
         // each 5000ms / 5s
-        if (counter % 50 == 0) {
+        if (counter % 100 == 0) {
+//        if (false) {
             printf("routing table:\n");
             for (int i = 0; i < NEIGHBOUR_TABLE_SIZE; i++) {
-                printf("neighbourId: %d\n                   \n", neighbourTable[i].neighbourId);
-                for (int i = 0; i < DESTINATION_COUNT; i++) {
-                    printf(" %d |", neighbourTable[i].destinations[i].destinationId);
+                printf("neighbourId: %04x        ", neighbourTable[i].neighbourId);
+                for (int j = 0; j < DESTINATION_COUNT; j++) {
+                    printf(" %04x |", neighbourTable[i].destinations[j].destinationId);
+                }
+                printf("\n               %02x        ", neighbourTable[i].neighbourPlace);
+                for (int j = 0; j < DESTINATION_COUNT; j++) {
+                    printf("   %02x |", neighbourTable[i].destinations[j].place);
+                }
+                printf("\n               %02x        ", neighbourTable[i].neighbourSensorCh);
+                for (int j = 0; j < DESTINATION_COUNT; j++) {
+                    printf("   %02x |", neighbourTable[i].destinations[j].sensorCh);
                 }
                 printf("\n");
             }
+
+            memset(neighbourTable, 0, sizeof(struct NeighbourEntry) * NEIGHBOUR_TABLE_SIZE);
+
         }
         counter++;
         uint32_t end = HAL_GetTick();
-        if (end - start <100) {
+        if (end - start < 100) {
             HAL_Delay(100 - (end - start));
         }
     }

@@ -51,6 +51,9 @@ target_sources(stm32cubemx INTERFACE
     ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_exti.c
     ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_adc.c
     ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_adc_ex.c
+    ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_crc.c
+    ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_crc_ex.c
+    ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_rng.c
     ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_spi.c
     ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_tim.c
     ../../Drivers/STM32L0xx_HAL_Driver/Src/stm32l0xx_hal_tim_ex.c

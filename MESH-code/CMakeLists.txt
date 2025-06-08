@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.22)
 #
 
 # Setup compiler settings
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
@@ -59,6 +59,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/appMain.c
         src/wirelessComms.c
         src/actuator.c
+        src/sensor.c
         src/cc1101/cc1101.c
         src/ld2410b/ld2410b.c
         src/utils/utils.c
@@ -68,6 +69,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/eeprom/eeprom.c
         src/protocol/routing.c
         src/protocol/protocol.c
+        src/configuration/configurationLoader.c
 )
 
 # Add include paths

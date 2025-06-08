@@ -42,8 +42,10 @@ void routing_processPacket(struct Packet *packet);
 // Will try update place and sensorCh
 void routing_processCDPacket(struct PacketCD *packet);
 
+void routing_processDRPPacket(struct PacketDRP *packet);
+
 // Will return destinationId for packet to get to finalDestination
-uint16_t routing_getRoute(uint16_t destination);
+uint16_t routing_getRouteById(uint16_t destination);
 
 
 #endif //MESH_CODE_ROUTING_H

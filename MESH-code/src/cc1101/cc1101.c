@@ -61,6 +61,7 @@
 #define CC1101_REG_MCSM1          0x17
 #define CC1101_REG_MCSM0          0x18
 #define CC1101_REG_FREND0         0x22  /* Front End TX Configuration */
+#define CC1101_REG_AGCCTRL1       0x1C
 
 #define CC1101_REG_PATABLE        0x3e
 #define CC1101_REG_FIFO           0x3f
@@ -173,6 +174,8 @@ enum CCStatus cc1101_begin(struct cc1101 *instance, struct CCconfig config) {
 
 void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config) {
     //wait for idle
+    instance->lastOpTime = HAL_GetTick();
+
     while (_waitFor(instance, 3, TX_STOP, RX_STOP, TRX_DISABLE)) {
 //    while (instance->trState != TX_STOP && instance->trState != RX_STOP) {
         HAL_Delay(1);
@@ -492,13 +495,24 @@ enum CCStatus cc1101_transmit_async(struct cc1101 *instance, uint8_t *data, size
     _writeReg(instance, CC1101_REG_FIFO, (uint8_t) length);
     _writeRegBurst(instance, CC1101_REG_FIFO, data, bytesToWrite);
     instance->txPckLenProg += bytesToWrite;
-    instance->lastOpTime = HAL_GetTick();
     _setState(instance, STATE_TX);
+
+    uint32_t time = HAL_GetTick();
+    //wait for state to be tx
+    while (_getState(instance) != STATE_TX) {
+        _setState(instance, STATE_TX);
+        // something is wrong, proceed with transmission
+        if (HAL_GetTick() - 1000 > time) {
+            break;
+        }
+    }
     return STATUS_OK;
 }
 
 enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t addr) {
     //wait for idle
+    instance->lastOpTime = HAL_GetTick();
+
     while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
 //    while (instance->trState != TX_STOP && instance->trState != RX_STOP && instance->trState != RX_PRE_END) {
         HAL_Delay(1);
@@ -517,13 +531,48 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
     _writeRegBurst(instance, CC1101_REG_FIFO, data, bytesToWrite);
     instance->txPckLenProg += bytesToWrite;
 
-    _setState(instance, STATE_IDLE);
 
+    _setState(instance, STATE_RX);
+
+    uint8_t bytesInRX = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
+    _readRegBurst(instance, CC1101_REG_FIFO, instance->rxBuf, bytesInRX);
+
+    //wait for clear channel
+    //wait random time
+    delay_micros(utils_random_int() % 100);
+
+    bytesInRX = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
+    _readRegBurst(instance, CC1101_REG_FIFO, instance->rxBuf, bytesInRX);
 
     _setState(instance, STATE_TX);
+    uint32_t time = HAL_GetTick();
+    //wait for state to be tx
+    while (_getState(instance) != STATE_TX) {
+
+        bytesInRX = _readRegField(instance, CC1101_REG_RXbytes, 6, 0);
+        _readRegBurst(instance, CC1101_REG_FIFO, instance->rxBuf, bytesInRX);
+
+        _setState(instance, STATE_TX);
+        if(_getState(instance)==STATE_RXFIFO_OVERFLOW){
+            _flushRxBuffer(instance);
+            _setState(instance,STATE_TX);
+        }
+        // something is wrong, proceed with transmission
+//        if (HAL_GetTick() - 1000 > time) {
+//            break;
+//        }
+    }
+
 
     while (instance->txPckLenProg < length) {
         uint8_t bytesInfifo = _readRegField(instance, CC1101_REG_TXbytes, 6, 0);
+        //something is wrong
+        if (instance->currentState == STATE_IDLE || instance->currentState == STATE_TXFIFO_UNDERFLOW) {
+            _flushRxBuffer(instance);
+            _flushTxBuffer(instance);
+            _setState(instance, STATE_IDLE);
+            break;
+        }
 
         if (bytesInfifo < (CC1101_FIFO_SIZE - 1)) {
             bytesToWrite = min((uint8_t) (length - instance->txPckLenProg),
@@ -533,15 +582,19 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
         }
     }
 
+    time = HAL_GetTick();
     while (_getState(instance) != STATE_IDLE) {
         delay_micros(50);
+        if (HAL_GetTick() - 2000 > time) {
+            _setState(instance, STATE_IDLE);
+            break;
+        }
     }
 
     _flushRxBuffer(instance);
     _flushTxBuffer(instance);
     instance->trState = prevState;
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
-    instance->lastOpTime = HAL_GetTick();
     _switchToDefaultState(instance);
     return STATUS_OK;
 }
@@ -549,6 +602,8 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
 int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t length, uint8_t *rssi, uint8_t *lq,
                             uint32_t timeout) {
     //wait for idle
+    instance->lastOpTime = HAL_GetTick();
+
     while (_waitFor(instance, 4, TX_STOP, RX_STOP, RX_PRE_END, TRX_DISABLE)) {
 //        while (instance->trState != TX_STOP && instance->trState != RX_STOP && instance->trState != RX_PRE_END) {
         HAL_Delay(1);
@@ -632,7 +687,6 @@ int16_t cc1101_receive_sync(struct cc1101 *instance, uint8_t *data, size_t lengt
     //switch to default state
     instance->trState = prevState;
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, 0);
-    instance->lastOpTime = HAL_GetTick();
     _switchToDefaultState(instance);
     return pktLength;
 }
@@ -761,7 +815,17 @@ void _receive_interrupt(struct cc1101 *instance) {
         _setState(instance, STATE_RX);
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, 0);
         instance->trState = RX_STOP;
-        instance->lastOpTime = HAL_GetTick();
+        _setState(instance, STATE_RX);
+        while (_getState(instance) != STATE_RX) {
+            delay_micros(50);
+            _setState(instance, STATE_RX);
+        }
+        return;
+    }
+    //something gone wrong
+    if (state == STATE_IDLE) {
+        instance->trState = RX_STOP;
+        _switchToDefaultState(instance);
     }
 }
 
@@ -789,7 +853,6 @@ void _transmit_interrupt(struct cc1101 *instance) {
         instance->trState = TX_STOP;
 
         _setState(instance, STATE_IDLE);
-        instance->lastOpTime = HAL_GetTick();
         cc1101_start_receive(instance);
     }
 }
@@ -815,9 +878,12 @@ void _setState(struct cc1101 *instance, enum CCState state) {
             /* Not supported. */
             return;
     }
-
+    uint32_t time = HAL_GetTick();
     while (_getState(instance) != state) {
         delay_micros(100);
+        if (HAL_GetTick() - 10 > time) {
+            break;
+        }
     }
 }
 
@@ -881,6 +947,8 @@ void cc1101_start_receive(struct cc1101 *instance) {
     _setState(instance, STATE_IDLE);
     while (_getState(instance) != STATE_IDLE) {
         delay_micros(50);
+        _setState(instance, STATE_IDLE);
+
     }
 
     _flushRxBuffer(instance);
@@ -902,6 +970,10 @@ void cc1101_start_receive(struct cc1101 *instance) {
 
     delay_micros(500);
     _setState(instance, STATE_RX);
+    while (_getState(instance) != STATE_RX) {
+        delay_micros(50);
+        _setState(instance, STATE_RX);
+    }
 }
 
 void cc1101_start_transmit(struct cc1101 *instance) {
@@ -997,8 +1069,12 @@ void _readRegBurst(struct cc1101 *instance, uint8_t addr, uint8_t *buff, size_t 
 void _setRegs(struct cc1101 *instance) {
     // Automatically calibrate when going from IDLE to RX or TX.
     _writeRegField(instance, CC1101_REG_MCSM0, 1, 5, 4);
+
+    _writeRegField(instance, CC1101_REG_MCSM1, 1, 5, 4);
     _writeRegField(instance, CC1101_REG_MCSM1, 0, 1, 0);
     _writeRegField(instance, CC1101_REG_MCSM1, 0, 3, 2);
+    _writeRegField(instance, CC1101_REG_AGCCTRL1, 2, 5, 4);
+
 
 //    _writeRegField(instance,CC1101_REG_FOCCFG,)
 
@@ -1135,8 +1211,9 @@ uint8_t _waitFor(struct cc1101 *instance, int count, ...) {
         instance->trState = RX_STOP;
         _switchToDefaultState(instance);
     }
-    // reset state if some error has oddured
-    if (instance->currentState == STATE_IDLE) {
+    // reset state if some error has occurred
+    if (instance->currentState == STATE_IDLE && (instance->trState == RX_START)) {
+        instance->trState = RX_STOP;
         _switchToDefaultState(instance);
     }
     for (int i = 0; i < count; ++i) {
