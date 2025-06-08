@@ -13,8 +13,13 @@ extern uint16_t *vars;
 /*
  * Public functions for the ld2410b sensor.
  */
-void actuator_handle_CD(struct PacketCD * pck);
-
 /// Load selected configuration, subscribe to required channels and create math expression
 void actuator_load_config();
+
+/// Handle new packet, write data and evaluate expression
+void actuator_handle_CD(struct PacketCD * pck);
+
+/// Evaluate expression
+void actuator_expr_eval();
+
 #endif //MESH_CODE_ACTUATOR_H

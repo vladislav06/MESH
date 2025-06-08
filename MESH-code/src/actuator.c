@@ -111,4 +111,25 @@ void actuator_handle_CD(struct PacketCD *pck) {
         // Keep iterating to find channel if not found yet
         bytePos += sizeof(struct DataChannel);
     }
+
+    // Evaluate expression after all is done
+    actuator_expr_eval();
+}
+
+void actuator_expr_eval() {
+    // Go through each usedChannel
+    uint16_t bytePos = placePosInEEPROM;
+    bytePos++;
+    const uint8_t usedChannelCount = EEPROM_DATA[bytePos];
+    for (int i = 0; i < usedChannelCount; i++) {
+        // Cast bytes to DataChannel
+        struct DataChannel *channel = (struct DataChannel *) &EEPROM_DATA[bytePos];
+        // Map data received from pckCD to expression
+        struct expr_var *var = expr_var(&channel->name, 1);
+            var->value = vars[i];
+        // Keep iterating to map everything else
+        bytePos += sizeof(struct DataChannel);
+    }
+    // Call evaluate
+    expr_eval(expression);
 }
