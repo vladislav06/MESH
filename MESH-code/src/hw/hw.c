@@ -46,6 +46,23 @@ void hw_enable_ld(bool state) {
 
 }
 
+/*
+* stm32 has 96 bit large unique id which consists of
+* UID[31:0]:  X and Y coordinates on the wafer expressed in BCD format
+* UID[39:32]: WAF_NUM[7:0] Wafer number (8-bit unsigned number)
+* UID[63:40]: LOT_NUM[23:0] Lot number (ASCII encoded)
+* UID[95:64]: LOT_NUM[55:24] Lot number (ASCII encoded)
+* 96 bits are equally split among 3 uint32
+* Because of that and the fact that all 10 chips are from same batch, first 2 uint32 are the same,
+* and does not require check
+* example:
+* 0  256324400
+* 1  909523256
+* 2  4128845
+* 0  256324400
+* 1  909523256
+* 2  4128848
+*/
 uint16_t hw_id(void) {
     return ((HAL_GetUIDw2() & 0xff0000) >> 8) | (HAL_GetUIDw2() & 0xff);
 }

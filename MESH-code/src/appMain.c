@@ -32,20 +32,14 @@ void appMain(ADC_HandleTypeDef *hadc,
 
     HAL_Delay(2000);
     printf("%#08lX\r\n", HAL_GetUIDw2());
+
     // init utilities
     hw_enable_ld(true);
-    utils_init(htim6, hcrc, hrng);
+    utils_init(htim6, huart2, hcrc, hrng);
     loadConfigurationThruUSB();
-//
 
-//    struct mallinfo mi = mallinfo();
-//    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
-//    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
-//    printf("Total free space (fordblks):           %d\n", mi.fordblks);
-
-//    expr_test();
     char *s = "2+2";
-//    struct expr_var_list vars = {0};
+
     static struct expr_func user_funcs[] = {
             {"", NULL, NULL, 0},
     };
@@ -58,65 +52,14 @@ void appMain(ADC_HandleTypeDef *hadc,
         printf("FAIL: %s returned NULL\n", s);
         return;
     }
+
     float result = expr_eval(e);
     printf("result = %d\n", (int) result);
 
-//    expr_destroy(e, &vars);
 
-//    mi = mallinfo();
-//    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
-//    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
-//    printf("Total free space (fordblks):           %d\n", mi.fordblks);
-
-
-//
-//    /*
-//    * stm32 has 96 bit large unique id which consists of
-//    * UID[31:0]:  X and Y coordinates on the wafer expressed in BCD format
-//    * UID[39:32]: WAF_NUM[7:0] Wafer number (8-bit unsigned number)
-//    * UID[63:40]: LOT_NUM[23:0] Lot number (ASCII encoded)
-//    * UID[95:64]: LOT_NUM[55:24] Lot number (ASCII encoded)
-//    * 96 bits are equally split among 3 uint32
-//    * Because of that and the fact that all 10 chips are from same batch, first 2 uint32 are the same,
-//    * and does not require check
-//    * example:
-//    * 0  256324400
-//    * 1  909523256
-//    * 2  4128845
-//    * 0  256324400
-//    * 1  909523256
-//    * 2  4128848
-//    */
     printf("%#X\r\n", hw_id());
     printf("%#X\r\n", hw_id());
     printf("%#X\r\n", hw_id());
-//
-//    uint8_t data_buffer[500] = {0};
-//////    HAL_UART_Receive_DMA(huart2, data_buffer, 1000);
-//
-//    // transmitting 0 fixed bug
-//    HAL_UART_Transmit(huart2, data_buffer, 1, 100);
-////
-//    uint8_t data_start[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01};
-////    uint8_t data_config[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0x62, 0x00,  0x04, 0x03, 0x02, 0x01};
-//    HAL_UART_Transmit(huart2, data_start, 14, 100);
-//////    HAL_UART_Transmit(huart2, data_start, 14, 5000);
-////
-//////    HAL_UART_Transmit(huart2, data_config, 12, 5000);
-//////    uint8_t data_end[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
-//////    HAL_UART_Transmit(huart2, data_end, 12, 5000);
-//////    HAL_UART_Transmit(huart2, data_end, 12, 100);
-//    HAL_UART_Receive(huart2, data_buffer, 20, 100);
-//    HAL_Delay(5000);
-//    for (int i = 0; i < 500; i++) {
-//        printf("%x ", data_buffer[i]);
-//    }
-//    printf("\t\n");
-////    printf("s1:%d|s2:%d",s1);
-
-//    struct PacketARR packetArr;
-//    packetArr.header.
-
 
 
     // cc1101 initialisation
@@ -163,19 +106,6 @@ void appMain(ADC_HandleTypeDef *hadc,
     cc.trState = RX_STOP;
     cc.defaultState = DEF_RX;
     enableInterrupts = 1;
-//
-//    uint32_t uid = HAL_GetUIDw2();
-//
-//    switch (uid) {
-//        case 0x3F004D:
-//            receiver();
-//            break;
-//        case 0x3C004C:
-//        case 0X280050:
-//            break;
-//    }
-//    transmitter();
-
 
     wireless_comms_init(&cc);
 
@@ -187,13 +117,14 @@ void appMain(ADC_HandleTypeDef *hadc,
         sensor_place = 10;
         sensor_sensorCh = 10;
     }
+
     // main loop, runs at 10Hz
     while (true)
 //    {uint8_t rssi= cc1101_getRssi(&cc);float dbm = cc1101_rssiToDbm(rssi);printf("rssi: %d.%d\n",(int) dbm, (int) (dbm - ((int) dbm)) * 100 );}
     {
 
         uint32_t start = HAL_GetTick();
-        // each 500ms
+        // usb debug each 500ms
         if (HAL_GetTick() % 5 == 0) {
             if (newDataIsAvailable()) {
                 for (uint32_t i = 0; i < rxLen; i++) {
@@ -222,41 +153,23 @@ void appMain(ADC_HandleTypeDef *hadc,
                 cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
             }
         }
+        // try discover then subscribe each 3seconds with 1.5s shift
         if (counter % 30 == 0) {
-
-            if (hw_id() == 0x1d35
-                || hw_id() == 0x3c4c
-                || hw_id() == 0x2f33
-                    ) {
+            if (hw_id() == 0x1d35 ||
+                hw_id() == 0x3c4c ||
+                hw_id() == 0x2f33) {
                 try_discover(0, 10, 10);
-                //CSR
-
-                // send discovery packet
-//                try_discover(0x4f4d, 0, 0);
-
-//                try_discover(0x3c4c);
             }
         }
         if (counter % 30 == 15) {
-
-            if (hw_id() == 0x1d35
-                || hw_id() == 0x3c4c
-                || hw_id() == 0x2f33
-                    ) {
-//                try_discover(0, 10, 10);
-                //CSR
-
+            if (hw_id() == 0x1d35 ||
+                hw_id() == 0x3c4c ||
+                hw_id() == 0x2f33) {
                 try_subscribe(10, 10, 1);
-
-
-                // send discovery packet
-//                try_discover(0x4f4d, 0, 0);
-
-//                try_discover(0x3c4c);
             }
         }
 
-        // each 5000ms / 5s
+        // each 10000ms / 10s
         if (counter % 100 == 0) {
 //        if (false) {
             printf("routing table:\n");
