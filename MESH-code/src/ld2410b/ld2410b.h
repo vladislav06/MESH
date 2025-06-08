@@ -4,8 +4,6 @@
 #include "stdint.h"
 #include "utils.h"
 
-#define LD2410_LATEST_FIRMWARE "2.44"
-
 /*
  * enums for certain values - light, output...
  */
@@ -73,4 +71,4 @@ void ld2410b_debugOff(struct ld2410b *instance);
 
 bool ld2410b_processReport(struct ld2410b *instance);
 
-#endif LD2410B_H
+#endif

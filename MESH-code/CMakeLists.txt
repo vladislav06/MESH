@@ -78,6 +78,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         src/cc1101
         src/ld2410b
         src
+        src/configuration
         src/utils
         src/hw
         src/expr

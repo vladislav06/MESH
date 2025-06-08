@@ -258,7 +258,38 @@ bool processReport(struct ld2410b *instance) {
     // Skip over head (1 byte...)
 
     // Record received data in order of its retrieval
-    instance->target_state = response[responseBeginning+4];
+    switch (response[responseBeginning+4]) {
+        case 0:
+            instance->target_state = NO_TARGET;
+            break;
+
+        case 1:
+            instance->target_state = MOVEMENT_TARGET;
+            break;
+
+        case 2:
+            instance->target_state = STATIONARY_TARGET;
+            break;
+
+        case 3:
+            instance->target_state = MOVEMENT_AND_STATIONARY_TARGET;
+            break;
+
+        case 4:
+            instance->target_state = BACKGROUND_NOISE_DETECTION_IN_PROGRESS;
+            break;
+
+        case 5:
+            instance->target_state = BACKGROUND_NOISE_DETECTION_SUCCESS;
+            break;
+
+        case 6:
+            instance->target_state = BACKGROUND_NOISE_DETECTION_FAIL;
+            break;
+
+        default:
+            return false;
+    }
 
     instance->target_distanceMovement = response[responseBeginning+5] | response[responseBeginning+6] << 8;
     instance->target_energyValueMovement = response[responseBeginning+7];

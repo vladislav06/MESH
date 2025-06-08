@@ -6,7 +6,12 @@
 #define MESH_CODE_ACTUATOR_H
 #include "protocol.h"
 
-void actuator_handle_CD(struct PacketCD * pck);
+extern uint8_t placePosInEEPROM;
+extern struct expr* expression;
 
+/*
+ * Public functions for the ld2410b sensor.
+ */
+void actuator_handle_CD(struct PacketCD * pck);
 
 #endif //MESH_CODE_ACTUATOR_H
