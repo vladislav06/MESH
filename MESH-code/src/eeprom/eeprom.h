@@ -15,6 +15,6 @@ extern const uint8_t *EEPROM_DATA;
 /**
  * Size of data must be multiple of 32 bytes
  */
-void eeprom_store(uint8_t * data, uint32_t size);
+void eeprom_store(uint8_t *data, uint32_t size, uint32_t offset);
 
 #endif //MESH_CODE_EEPROM_H

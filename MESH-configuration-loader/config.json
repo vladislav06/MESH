@@ -1,0 +1,15 @@
+[
+  {
+    "place": 0,
+    "usedChannels": [
+      {
+        "var": "a",
+        "dataCh": 0,
+        "place": 0,
+        "sensorCh": 0,
+        "MixMode": 0
+      }
+    ],
+    "algo": "x=a+1"
+  }
+]

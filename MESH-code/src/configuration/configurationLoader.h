@@ -14,6 +14,8 @@ extern uint32_t rxLen;
 
 // Will try load configuration thru usb cdc
 void loadConfigurationThruUSB();
+
+void startLoadConfiguration();
 // returns true if rxBuf has new data
 bool newDataIsAvailable();
 // must be called after new data was processed

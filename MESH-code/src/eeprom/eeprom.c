@@ -10,7 +10,7 @@ const uint8_t *EEPROM_DATA = (uint8_t *) EEPROM_PTR;
 /**
  * Size of data must be multiple of 32 bytes
  */
-void eeprom_store(uint8_t *data, uint32_t size) {
+void eeprom_store(uint8_t *data, uint32_t size, uint32_t offset) {
     HAL_FLASHEx_DATAEEPROM_Unlock();
     FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);
 
@@ -24,7 +24,7 @@ void eeprom_store(uint8_t *data, uint32_t size) {
         uint32_t c1;
         uint32_t d1;
     };
-    uint32_t *eepromStart = (uint32_t *) EEPROM_PTR;
+    uint32_t *eepromStart = (uint32_t *) (EEPROM_PTR + offset);
 
     // this loop uses ldmia and stmia instructions to store multiple bytes(3*4) with 1 instruction,
     // because flash is not read-while-write and the whole cpu waits for flash to be readable again

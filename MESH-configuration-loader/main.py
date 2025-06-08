@@ -1,36 +1,53 @@
+import os
 import serial
 import time
 import threading
+import json
+import sys
 
 
-# load json configuration
-# convert it to byte representation
-# send to serial
+def parseConfig(places: dict):
+    data = [0x69,0x96]
+    data.append(len(places))
+    for place in places:
+        data.append(place["place"])
+        data.append(len(place["usedChannels"]))
+        for channel in place["usedChannels"]:
+            data.append(ord(channel["var"]))
+            data.append(channel["dataCh"])
+            data.append(channel["place"])
+            data.append(channel["sensorCh"])
+            data.append(channel["MixMode"])
+        data.append(len(place["algo"]))
+        for c in place["algo"]:
+            data.append(ord(c))
+        data.append(0)
+    return data
 
-ser = serial.Serial("/dev/ttyACM0", 115200)
 
-def receive():
-    while True:
-        bs = ser.readline()
-        print(bs)
+def main():
+    if len(sys.argv) != 3:
+        print("Serial port and config file path is expected")
+        return
 
+    try:
+        ser = serial.Serial(sys.argv[1], 115200)
+    except:
+        print("Serial port cant be opened")
+        return
 
-def transmit():
-    while True:
+    if not os.path.isfile(sys.argv[2]):
+        print("File port cant be opened")
+        return
+
+    with open(sys.argv[2]) as f:
+        d = json.load(f)
+        data = parseConfig(d)
         ser.write(data)
         ser.flush()
-        time.sleep(1)
+        ser.close()
+    return
 
 
-# Send character 'S' to start the program
-data = []
-for i in range(0, 1024):
-    data.append(i%256)
-# Read line   
-
-
-t1 = threading.Thread(target=receive)
-t2 = threading.Thread(target=transmit)
-
-t1.start()
-t2.start()
+if __name__ == "__main__":
+    main()

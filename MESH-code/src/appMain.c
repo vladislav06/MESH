@@ -18,6 +18,7 @@
 #include "routing.h"
 #include "sensor.h"
 #include "configuration/configurationLoader.h"
+#include "eeprom.h"
 
 static struct cc1101 cc;
 static int n = 0;
@@ -128,10 +129,10 @@ void appMain(ADC_HandleTypeDef *hadc,
         // usb debug each 500ms
         if (HAL_GetTick() % 5 == 0) {
             if (newDataIsAvailable()) {
-                for (uint32_t i = 0; i < rxLen; i++) {
-                    printf("%d ", rxBuf[i]);
+                if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
+                    startLoadConfiguration();
+                    printf("data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
                 }
-                printf("\n");
                 dataWasReceived();
             }
         }
