@@ -67,3 +67,24 @@ uint16_t hw_id(void) {
     return ((HAL_GetUIDw2() & 0xff0000) >> 8) | (HAL_GetUIDw2() & 0xff);
 }
 
+void hw_init(ADC_HandleTypeDef *adc) {
+    ADC_ChannelConfTypeDef sConfig = {0};
+    sConfig.Channel = ADC_CHANNEL_0;
+    sConfig.Rank = ADC_RANK_NONE;
+    HAL_ADC_ConfigChannel(adc, &sConfig);
+}
+
+uint32_t hw_read_analog(ADC_HandleTypeDef *adc, uint32_t pin) {
+    ADC_ChannelConfTypeDef sConfig = {0};
+    sConfig.Channel = ADC_CHANNEL_9;
+    sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+    HAL_ADC_ConfigChannel(adc, &sConfig);
+    HAL_ADC_Start(adc);
+    HAL_ADC_PollForConversion(adc, 10);
+    uint32_t val = HAL_ADC_GetValue(adc);
+    sConfig.Rank = ADC_RANK_NONE;
+    HAL_ADC_ConfigChannel(adc, &sConfig);
+    HAL_ADC_Stop(adc);
+    return val;
+}
+

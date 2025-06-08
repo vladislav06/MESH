@@ -13,9 +13,13 @@
 #define EEPROM_PTR 0x08080000
 #define EEPROM_SIZE 2048
 
+void hw_init(ADC_HandleTypeDef *adc);
+
 void hw_set_D4(bool state);
 
 void hw_set_D3(bool state);
+
+uint32_t hw_read_analog(ADC_HandleTypeDef *adc,uint32_t pin);
 
 void hw_enable_ld(bool state);
 

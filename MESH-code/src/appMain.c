@@ -29,7 +29,7 @@ void appMain(ADC_HandleTypeDef *hadc,
              UART_HandleTypeDef *huart2,
              CRC_HandleTypeDef *hcrc,
              RNG_HandleTypeDef *hrng) {
-
+    hw_init(hadc);
     HAL_Delay(2000);
     printf("%#08lX\r\n", HAL_GetUIDw2());
 
@@ -120,6 +120,7 @@ void appMain(ADC_HandleTypeDef *hadc,
 
     // main loop, runs at 10Hz
     while (true)
+//    {printf("%lu \n", hw_read_analog(hadc, 0));}
 //    {uint8_t rssi= cc1101_getRssi(&cc);float dbm = cc1101_rssiToDbm(rssi);printf("rssi: %d.%d\n",(int) dbm, (int) (dbm - ((int) dbm)) * 100 );}
     {
 
