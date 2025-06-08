@@ -19,6 +19,7 @@
 #include "sensor.h"
 #include "configuration/configurationLoader.h"
 #include "eeprom.h"
+#include "actuator.h"
 
 static struct cc1101 cc;
 static int n = 0;
@@ -37,35 +38,11 @@ void appMain(ADC_HandleTypeDef *hadc,
     // init utilities
     hw_enable_ld(true);
     utils_init(htim6, huart2, hcrc, hrng);
-    loadConfigurationThruUSB();
-
-    char *s = "2+2";
-
-    static struct expr_func user_funcs[] = {
-            {"", NULL, NULL, 0},
-    };
-
-    struct expr *e = expr_create(s, strlen(s), user_funcs);
-
-    struct expr_var *varx = expr_var("x", 1);
-    varx->value = 1;
-    if (e == NULL) {
-        printf("FAIL: %s returned NULL\n", s);
-        return;
-    }
-
-    float result = expr_eval(e);
-    printf("result = %d\n", (int) result);
-
-
-    printf("%#X\r\n", hw_id());
-    printf("%#X\r\n", hw_id());
-    printf("%#X\r\n", hw_id());
+    configuration_load_init();
 
 
     // cc1101 initialisation
     cc1101_create(&cc, GPIO_PIN_4, GPIO_PIN_14, GPIO_PIN_15, hspi1);
-
     // config cc1101
     struct CCconfig config = {
             .mod=MOD_GFSK,
@@ -114,66 +91,75 @@ void appMain(ADC_HandleTypeDef *hadc,
     cc1101_start_receive(&cc);
 
     uint32_t counter = 0;
-    if (hw_id() == 0x4f4d) {
-        sensor_place = 10;
-        sensor_sensorCh = 10;
+    switch (hw_id()) {
+        case 0x3133:
+            sensor_place = 10;
+            sensor_sensorCh = 10;
+            break;
     }
 
+    actuator_load_config();
+
+    actuator_subscribe();
+
+
     // main loop, runs at 10Hz
-    while (true)
-//    {printf("%lu \n", hw_read_analog(hadc, 0));}
-//    {uint8_t rssi= cc1101_getRssi(&cc);float dbm = cc1101_rssiToDbm(rssi);printf("rssi: %d.%d\n",(int) dbm, (int) (dbm - ((int) dbm)) * 100 );}
-    {
+    while (true) {
 
         uint32_t start = HAL_GetTick();
-        // usb debug each 500ms
-        if (HAL_GetTick() % 5 == 0) {
+        // usb config load every second
+        if (HAL_GetTick() % 10 == 0) {
             if (newDataIsAvailable()) {
                 if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
                     startLoadConfiguration();
-                    printf("data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
+                    printf("Data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
                 }
                 dataWasReceived();
             }
         }
         // each 1000ms / 1s
-        if (counter % 10 == 0) {
-            if (hw_id() == 0x474d) {
+//        if (counter % 10 == 0) {
+//            if (hw_id() == 0x474d) {
 //        if (false) {
-                // send discovery packet
-                struct PacketNRR packetNRR = {
-                        .header.magic = MAGIC,
-                        .header.sourceId = hw_id(),
-                        .header.destinationId = 0,
-                        .header.originalSource = hw_id(),
-                        .header.finalDestination = 0,
-                        .header.hopCount = 0,
-                        .header.packetType = NRR,
-                        .header.size = 0,
-                };
-                calc_crc((struct Packet *) &packetNRR);
-                cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
-            }
-        }
-        // try discover then subscribe each 3seconds with 1.5s shift
-        if (counter % 30 == 0) {
-            if (hw_id() == 0x1d35 ||
-                hw_id() == 0x3c4c ||
-                hw_id() == 0x2f33) {
-                try_discover(0, 10, 10);
-            }
-        }
-        if (counter % 30 == 15) {
-            if (hw_id() == 0x1d35 ||
-                hw_id() == 0x3c4c ||
-                hw_id() == 0x2f33) {
-                try_subscribe(10, 10, 1);
-            }
+//                // send discovery packet
+//                struct PacketNRR packetNRR = {
+//                        .header.magic = MAGIC,
+//                        .header.sourceId = hw_id(),
+//                        .header.destinationId = 0,
+//                        .header.originalSource = hw_id(),
+//                        .header.finalDestination = 0,
+//                        .header.hopCount = 0,
+//                        .header.packetType = NRR,
+//                        .header.size = 0,
+//                };
+//                calc_crc((struct Packet *) &packetNRR);
+//                cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
+//            }
+//        }
+
+        // subscribe to datachannels every 5 seconds
+        if (counter % 50 == 0) {
+            actuator_subscribe();
         }
 
+        //execute algorithm every second
+        if (counter % 10 == 0) {
+            actuator_expr_eval();
+        }
+
+        //send sensor data every second
+        if (counter % 10 == 5) {
+            sensor_send(&cc, hadc);
+        }
+
+
+
+
+
+
         // each 10000ms / 10s
-        if (counter % 100 == 0) {
-//        if (false) {
+//        if (counter % 100 == 0) {
+        if (false) {
             printf("routing table:\n");
             for (int i = 0; i < NEIGHBOUR_TABLE_SIZE; i++) {
                 printf("neighbourId: %04x        ", neighbourTable[i].neighbourId);
@@ -194,6 +180,7 @@ void appMain(ADC_HandleTypeDef *hadc,
             memset(neighbourTable, 0, sizeof(struct NeighbourEntry) * NEIGHBOUR_TABLE_SIZE);
 
         }
+
         counter++;
         uint32_t end = HAL_GetTick();
         if (end - start < 100) {

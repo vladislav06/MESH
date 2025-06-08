@@ -13,7 +13,7 @@ extern uint32_t rxLen;
 
 
 // Will try load configuration thru usb cdc
-void loadConfigurationThruUSB();
+void configuration_load_init();
 
 void startLoadConfiguration();
 // returns true if rxBuf has new data

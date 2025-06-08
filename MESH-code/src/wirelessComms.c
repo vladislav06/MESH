@@ -113,6 +113,7 @@ uint8_t handle_CSR(struct Packet *pck) {
 
     // check if this node is packets target
     if (pckCSR->place == sensor_place && (pckCSR->sensorCh == sensor_sensorCh || pckCSR->sensorCh == 0)) {
+        routing_processPacket(pck);
         //check if requested data channel exists
         for (int ch = 0; ch < DATA_CHANNEL_COUNT; ch++) {
             if (sensor_dataChannels[ch] == pckCSR->dataCh) {
@@ -205,9 +206,6 @@ uint8_t handle_CSR(struct Packet *pck) {
 uint8_t handle_CD(struct Packet *pck) {
     struct PacketCD *pckCD = (struct PacketCD *) pck;
     // ignore data packets not for this node
-    if (pck->destinationId != hw_id()) {
-        return 0;
-    }
 
     if (pck->finalDestination == hw_id()) {
         // TODO: call incoming chanel data handler

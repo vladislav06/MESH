@@ -29,7 +29,7 @@ void dataWasReceived() {
     receiveFlag = false;
 }
 
-void loadConfigurationThruUSB() {
+void configuration_load_init() {
     USBD_Interface_fops_FS.Receive = onReceive;
 }
 
