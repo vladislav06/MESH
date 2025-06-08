@@ -1,3 +1,4 @@
+import array
 import os
 import serial
 import time
@@ -7,7 +8,9 @@ import sys
 
 
 def parseConfig(places: dict):
-    data = [0x69,0x96]
+    data = array.array('B', [])
+    data.append(0x69)
+    data.append(0x96)
     data.append(len(places))
     for place in places:
         data.append(place["place"])
@@ -18,7 +21,8 @@ def parseConfig(places: dict):
             data.append(channel["place"])
             data.append(channel["sensorCh"])
             data.append(channel["MixMode"])
-        data.append(len(place["algo"]))
+        data.append(len(place["algo"]) % 256)
+        data.append(int(len(place["algo"]) / 256))
         for c in place["algo"]:
             data.append(ord(c))
         data.append(0)
@@ -43,6 +47,7 @@ def main():
     with open(sys.argv[2]) as f:
         d = json.load(f)
         data = parseConfig(d)
+        print(data)
         ser.write(data)
         ser.flush()
         ser.close()
