@@ -15,7 +15,7 @@
 #include "wirelessComms.h"
 
 uint8_t placePosInEEPROM;
-struct expr* expression;
+struct expr *expression;
 
 /// Public functions
 void actuator_load_config() {
@@ -30,7 +30,7 @@ void actuator_load_config() {
     placePosInEEPROM = 0;
     while (skippedPlaceCount < placeCount) {
         // Check whether this place is the one we want
-        if (EEPROM_DATA[bytePos]== intendedPlace) {
+        if (EEPROM_DATA[bytePos] == intendedPlace) {
             placePosInEEPROM = bytePos;
             break;
         }
@@ -39,8 +39,9 @@ void actuator_load_config() {
         bytePos++;
         uint8_t usedChannelCount = EEPROM_DATA[bytePos];
         bytePos += usedChannelCount * sizeof(struct DataChannel);
-        // Skip through algorithm
-        uint16_t algoLength = EEPROM_DATA[bytePos];
+        // Skip through algorithm and its length
+        uint16_t algoLength = EEPROM_DATA[bytePos] + (EEPROM_DATA[bytePos + 1] << 8);
+        bytePos += 2;
         bytePos += algoLength * sizeof(char);
 
         // Onto the next one
@@ -61,7 +62,7 @@ void actuator_load_config() {
     bytePos++;
     for (int i = 0; i < usedChannelCount; i++) {
         // Cast bytes to DataChannel
-        struct DataChannel* channel = (struct DataChannel *)&EEPROM_DATA[bytePos];
+        struct DataChannel *channel = (struct DataChannel *) &EEPROM_DATA[bytePos];
         // Subscribe to channel based on data provided
         try_subscribe(channel->place, channel->sensorCh, channel->dataCh);
         // Point to next channel
@@ -74,7 +75,7 @@ void actuator_load_config() {
 
     // TODO: Implement real functions for user_funcs later.
     static struct expr_func user_funcs[] = {
-        {"", NULL, NULL, 0},
+            {"", NULL, NULL, 0},
     };
 
     expression = expr_create(&EEPROM_DATA[bytePos], algoLength, user_funcs);

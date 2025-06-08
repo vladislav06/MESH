@@ -14,4 +14,6 @@ extern struct expr* expression;
  */
 void actuator_handle_CD(struct PacketCD * pck);
 
+/// Load selected configuration, subscribe to required channels and create math expression
+void actuator_load_config();
 #endif //MESH_CODE_ACTUATOR_H
