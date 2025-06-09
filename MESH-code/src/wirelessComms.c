@@ -281,7 +281,9 @@ uint8_t handle_CSR(struct Packet *pck) {
 uint8_t handle_CD(struct Packet *pck) {
     struct PacketCD *pckCD = (struct PacketCD *) pck;
     // ignore data packets not for this node
-
+    if (pckCD->header.destinationId != hw_id()) {
+        return 0;
+    }
     if (pck->finalDestination == hw_id()) {
         // TODO: call incoming chanel data handler
         actuator_handle_CD(pckCD);
@@ -487,6 +489,10 @@ uint8_t handle_DRP(struct Packet *pck) {
 
 uint8_t handle_ACK(struct Packet *pck) {
     struct PacketACK *pckACK = (struct PacketACK *) pck;
+
+    if (pckACK->header.destinationId != hw_id()) {
+        return 0;
+    }
 
     if (pckACK->header.finalDestination == hw_id()) {
         LOG("ACK received - from: %04x about:%d\n", pckACK->header.originalSource, pckACK->ackType);
