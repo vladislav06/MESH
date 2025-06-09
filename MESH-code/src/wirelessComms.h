@@ -18,6 +18,11 @@
                         responseLen = handle_##x(p); \
                      break
 
+
+extern uint16_t updater_id;
+extern uint16_t update_process;
+extern uint16_t update_length;
+
 void wireless_comms_init(struct cc1101 *cc);
 
 void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);

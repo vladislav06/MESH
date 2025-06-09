@@ -44,7 +44,9 @@ void sensor_send_data(struct cc1101 *cc, uint16_t value, uint8_t channel) {
 void sensor_send(struct cc1101 *cc,ADC_HandleTypeDef *adc) {
     switch (hw_id()) {
         case 0x3133:
-            sensor_send_data(&cc, hw_read_analog(adc, 0), 0);
+//        case 0x4f4d:
+            sensor_send_data(cc, hw_read_analog(adc, 0), 0);
             break;
+
     }
 }

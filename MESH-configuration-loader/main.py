@@ -11,6 +11,9 @@ def parseConfig(places: dict):
     data = array.array('B', [])
     data.append(0x69)
     data.append(0x96)
+    data.append(int(places["version"]) % 256)
+    data.append(int(places["version"] / 256))
+    places = places["data"]
     data.append(len(places))
     for place in places:
         data.append(place["place"])
@@ -37,6 +40,7 @@ def main():
     try:
         ser = serial.Serial(sys.argv[1], 115200)
     except:
+
         print("Serial port cant be opened")
         return
 

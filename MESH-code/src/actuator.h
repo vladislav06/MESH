@@ -7,9 +7,16 @@
 
 #include "protocol.h"
 
+#define OUTPUT_COUNT 1
+
+extern uint16_t configuration_version;
+extern uint16_t configuration_length;
+
 extern uint16_t placePosInEEPROM;
 extern struct expr *expression;
 extern uint16_t vars[10];
+
+extern float output[OUTPUT_COUNT];
 
 /*
  * Public functions for the ld2410b sensor.

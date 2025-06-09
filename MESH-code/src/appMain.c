@@ -38,7 +38,7 @@ void appMain(ADC_HandleTypeDef *hadc,
     // init utilities
     hw_enable_ld(true);
     utils_init(htim6, huart2, hcrc, hrng);
-    configuration_load_init();
+    configuration_usb_load_init();
 
 
     // cc1101 initialisation
@@ -96,6 +96,24 @@ void appMain(ADC_HandleTypeDef *hadc,
             sensor_place = 10;
             sensor_sensorCh = 10;
             break;
+//        case 0x4f4d:
+//            sensor_place = 9;
+//            sensor_sensorCh = 9;
+//            break;
+    }
+    if (configuration_usb_data_available()) {
+        if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
+            configuration_usb_start_load();
+            printf("Data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
+        }
+        configuration_usb_packet_processed();
+    }
+    if (configuration_usb_data_available()) {
+        if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
+            configuration_usb_start_load();
+            printf("Data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
+        }
+        configuration_usb_packet_processed();
     }
 
     actuator_load_config();
@@ -103,39 +121,23 @@ void appMain(ADC_HandleTypeDef *hadc,
     actuator_subscribe();
 
 
+
     // main loop, runs at 10Hz
     while (true) {
 
         uint32_t start = HAL_GetTick();
         // usb config load every second
-        if (HAL_GetTick() % 10 == 0) {
-            if (newDataIsAvailable()) {
+        if (counter% 10 == 0) {
+            if (configuration_usb_data_available()) {
                 if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
-                    startLoadConfiguration();
-                    printf("Data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
+                    configuration_usb_start_load();
+                    printf("Configuration was loaded, version:%d\n",configuration_version);
+                    actuator_load_config();
+                    actuator_subscribe();
                 }
-                dataWasReceived();
+                configuration_usb_packet_processed();
             }
         }
-        // each 1000ms / 1s
-//        if (counter % 10 == 0) {
-//            if (hw_id() == 0x474d) {
-//        if (false) {
-//                // send discovery packet
-//                struct PacketNRR packetNRR = {
-//                        .header.magic = MAGIC,
-//                        .header.sourceId = hw_id(),
-//                        .header.destinationId = 0,
-//                        .header.originalSource = hw_id(),
-//                        .header.finalDestination = 0,
-//                        .header.hopCount = 0,
-//                        .header.packetType = NRR,
-//                        .header.size = 0,
-//                };
-//                calc_crc((struct Packet *) &packetNRR);
-//                cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
-//            }
-//        }
 
         // subscribe to datachannels every 5 seconds
         if (counter % 50 == 0) {
@@ -145,6 +147,18 @@ void appMain(ADC_HandleTypeDef *hadc,
         //execute algorithm every second
         if (counter % 10 == 0) {
             actuator_expr_eval();
+//            struct PacketNRR packetNRR = {
+//                    .header.magic = MAGIC,
+//                    .header.sourceId = hw_id(),
+//                    .header.destinationId = 0,
+//                    .header.originalSource = hw_id(),
+//                    .header.finalDestination = 0,
+//                    .header.hopCount = 0,
+//                    .header.packetType = NRR,
+//                    .header.size = 0,
+//            };
+//            calc_crc((struct Packet *) &packetNRR);
+//            cc1101_transmit_sync(&cc, (uint8_t *) &packetNRR, sizeof(struct PacketNRR), 0);
         }
 
         //send sensor data every second
@@ -152,14 +166,36 @@ void appMain(ADC_HandleTypeDef *hadc,
             sensor_send(&cc, hadc);
         }
 
+        // each 5s ask neighbour for configuration version
+        if (counter % 50 == 0) {
+            struct PacketCVR packetCVR = {
+                    .header.magic = MAGIC,
+                    .header.sourceId = hw_id(),
+                    .header.destinationId = 0,
+                    .header.originalSource = hw_id(),
+                    .header.finalDestination = 0,
+                    .header.hopCount = 0,
+                    .header.packetType = CVR,
+                    .header.size = 0,
+            };
+            calc_crc((struct Packet *) &packetCVR);
+            cc1101_transmit_sync(&cc, (uint8_t *) &packetCVR, sizeof(struct PacketCVR), 0);
+        }
 
+        if (updater_id != 0) {
+            // new update is available, initiate update procedure
+            configuration_wireless_start_load(&cc);
+            printf("Configuration was loaded, version:%d\n",configuration_version);
+            actuator_load_config();
+            actuator_subscribe();
+        }
 
 
 
 
         // each 10000ms / 10s
-//        if (counter % 100 == 0) {
-        if (false) {
+        if (counter % 100 == 0) {
+//        if (false) {
             printf("routing table:\n");
             for (int i = 0; i < NEIGHBOUR_TABLE_SIZE; i++) {
                 printf("neighbourId: %04x        ", neighbourTable[i].neighbourId);
@@ -176,9 +212,7 @@ void appMain(ADC_HandleTypeDef *hadc,
                 }
                 printf("\n");
             }
-
-            memset(neighbourTable, 0, sizeof(struct NeighbourEntry) * NEIGHBOUR_TABLE_SIZE);
-
+//            memset(neighbourTable, 0, sizeof(struct NeighbourEntry) * NEIGHBOUR_TABLE_SIZE);
         }
 
         counter++;

@@ -2,6 +2,7 @@
 // Created by vm on 25.21.5.
 //
 
+#include <math.h>
 #include "actuator.h"
 
 #define DEBUG
@@ -14,16 +15,30 @@
 #include "configuration.h"
 #include "wirelessComms.h"
 
+uint16_t configuration_version;
+uint16_t configuration_length;
 uint16_t placePosInEEPROM;
 struct expr *expression;
 uint16_t vars[10];
+float output[OUTPUT_COUNT];
+
+
+// forward declr
+float expr_if(struct expr_func *f, struct expr_ptr_arr_t *args, void *c);
+
+float expr_out(struct expr_func *f, struct expr_ptr_arr_t *args, void *c);
 
 /// Public functions
 void actuator_load_config() {
     // Get current place
     const uint8_t intendedPlace = sensor_place;
-    // 0 and 1 hold 0x6996 (garbage-saving purposes), 2 holds the placeCount
-    const uint8_t placeCount = EEPROM_DATA[2];
+    // 0 and 1 hold 0x6996 (garbage-saving purposes), 2 holds the configuration version
+    uint16_t bytePos = 2;
+    configuration_version = EEPROM_DATA[bytePos] | EEPROM_DATA[bytePos + 1] << 8;
+
+    bytePos += 2;
+    const uint8_t placeCount = EEPROM_DATA[bytePos];
+    bytePos++;
 
     // Reset inner variables
     placePosInEEPROM = 0;
@@ -31,27 +46,27 @@ void actuator_load_config() {
     memset(vars, 0, 10);
 
     // Iterating through the places
-    uint16_t bytePos = 3;
     uint8_t skippedPlaceCount = 0;
     while (skippedPlaceCount < placeCount) {
         // Check whether this place is the one we want
         if (EEPROM_DATA[bytePos] == intendedPlace) {
             placePosInEEPROM = bytePos;
-            break;
         }
 
         // Skip through usedChannels
         bytePos++;
         uint8_t usedChannelCount = EEPROM_DATA[bytePos];
+        bytePos++;
         bytePos += usedChannelCount * sizeof(struct DataChannel);
         // Skip through algorithm and its length
-        uint16_t algoLength = EEPROM_DATA[bytePos] + (EEPROM_DATA[bytePos + 1] << 8);
+        uint16_t algoLength = EEPROM_DATA[bytePos] | EEPROM_DATA[bytePos + 1] << 8;
         bytePos += 2;
         bytePos += algoLength * sizeof(char);
 
         // Onto the next one
         skippedPlaceCount++;
     }
+    configuration_length = bytePos + 1;
 
     if (placePosInEEPROM == 0) {
         return;
@@ -59,6 +74,7 @@ void actuator_load_config() {
 
     // Reuse bytePos to inspect the found place - initially points to "place"
     bytePos = placePosInEEPROM;
+    bytePos++;
     //skip usedChannelCount and usedChannels
     const uint8_t usedChannelCount = EEPROM_DATA[bytePos];
     // Read channels
@@ -66,28 +82,35 @@ void actuator_load_config() {
     bytePos += usedChannelCount * sizeof(struct DataChannel);
 
     // Read algo - bytePos should already point to algoLength
-    const uint16_t algoLength = EEPROM_DATA[bytePos];
-    bytePos++;
+    const uint16_t algoLength = EEPROM_DATA[bytePos] | EEPROM_DATA[bytePos + 1] << 8;
+    bytePos += 2;
 
     // TODO: Implement real functions for user_funcs later.
     static struct expr_func user_funcs[] = {
-            {"", NULL, NULL, 0},
+            {"out",expr_out},
+            {"if",expr_if},
+            {"", nullptr},
     };
 
     expression = expr_create(&EEPROM_DATA[bytePos], algoLength, user_funcs);
+    bytePos += algoLength;
 }
 
 void actuator_subscribe() {
+    if (configuration_version == 0 || placePosInEEPROM == 0) {
+        return;
+    }
     uint16_t bytePos = placePosInEEPROM;
 
     // Read usedChannelCount
     bytePos++;
-    const uint8_t usedChannelCount = EEPROM_DATA[bytePos];
+    uint8_t usedChannelCount = EEPROM_DATA[bytePos];
     // Read channels
     bytePos++;
     for (int i = 0; i < usedChannelCount; i++) {
         // Cast bytes to DataChannel
         struct DataChannel *channel = (struct DataChannel *) &EEPROM_DATA[bytePos];
+        try_discover(0, channel->place, channel->sensorCh);
         // Subscribe to channel based on data provided
         try_subscribe(channel->place, channel->sensorCh, channel->dataCh);
         // Point to next channel
@@ -97,14 +120,17 @@ void actuator_subscribe() {
 
 
 void actuator_handle_CD(struct PacketCD *pck) {
-    LOG("CD was received from:%d dataCh: %d place: %d from: %d  =  %d",
+    LOG("CD was received from:%4x dataCh: %d place: %d from: %d  =  %d\n",
         pck->header.originalSource, pck->dataCh,
         pck->place, pck->sensorCh, pck->value);
-
+    if (configuration_version == 0 || placePosInEEPROM == 0) {
+        return;
+    }
     // Iterate through places
     uint16_t bytePos = placePosInEEPROM;
     bytePos++;
     const uint8_t usedChannelCount = EEPROM_DATA[bytePos];
+    bytePos++;
     for (int i = 0; i < usedChannelCount; i++) {
         // Cast bytes to DataChannel
         struct DataChannel *channel = (struct DataChannel *) &EEPROM_DATA[bytePos];
@@ -126,10 +152,14 @@ void actuator_handle_CD(struct PacketCD *pck) {
 }
 
 void actuator_expr_eval() {
+    if (configuration_version == 0 || placePosInEEPROM == 0) {
+        return;
+    }
     // Go through each usedChannel
     uint16_t bytePos = placePosInEEPROM;
     bytePos++;
     const uint8_t usedChannelCount = EEPROM_DATA[bytePos];
+    bytePos++;
     for (int i = 0; i < usedChannelCount; i++) {
         // Cast bytes to DataChannel
         struct DataChannel *channel = (struct DataChannel *) &EEPROM_DATA[bytePos];
@@ -141,12 +171,32 @@ void actuator_expr_eval() {
     }
     // Call evaluate
     expr_eval(expression);
+    for (int i = 0; i < OUTPUT_COUNT; i++) {
+        printf("expr out[%d]: %d.%d\n", i, (int) output[i], (int) ((output[i] - (int) output[i]) * 100));
+    }
+}
 
+
+float expr_if(struct expr_func *f, struct expr_ptr_arr_t *args, void *c) {
+    (void) f, (void) c;
+    float statement = expr_eval(&nth_token(*args, 0));
+    if (statement > 0.5) {
+        return expr_eval(&nth_token(*args, 1));
+    } else {
+        return expr_eval(&nth_token(*args, 2));
+    }
+}
+
+float expr_out(struct expr_func *f, struct expr_ptr_arr_t *args, void *c) {
+    (void) f, (void) c;
+    float outNum = expr_eval(&nth_token(*args, 0));
+    if (0 <= outNum && outNum < OUTPUT_COUNT) {
+        output[(int) roundf(outNum)] = expr_eval(&nth_token(*args, 1));
+    }
+    return 0;
 }
 
 //TODO:
 // move all module specific hardware to sensor.h
 // way to set multiple output values in algorithm
 // add ability to configure what sensor input goes to what dataCh(usb)
-// add version number and crc?
-// add configuration update ability
