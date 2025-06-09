@@ -14,6 +14,8 @@
 
 extern uint8_t sensor_place;
 extern uint8_t sensor_sensorCh;
+extern ADC_HandleTypeDef *adc;
+
 
 extern uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT];
 
@@ -23,6 +25,8 @@ struct Subscriber {
 };
 
 extern struct Subscriber subscribers[SUBSCRIBER_COUNT];
+
+void sensor_init(UART_HandleTypeDef *uart, ADC_HandleTypeDef *adc);
 
 void sensor_send(struct cc1101 *cc,ADC_HandleTypeDef *adc);
 

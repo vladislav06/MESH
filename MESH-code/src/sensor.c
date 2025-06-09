@@ -17,6 +17,14 @@ uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT] = {1, 2};
 
 struct Subscriber subscribers[SUBSCRIBER_COUNT] = {0};
 
+static UART_HandleTypeDef *uart;
+static ADC_HandleTypeDef *adc;
+
+void sensor_init(UART_HandleTypeDef *uartPassed, ADC_HandleTypeDef *adcPassed) {
+    uart = uartPassed;
+    adc = adcPassed;
+}
+
 void sensor_send_data(struct cc1101 *cc, uint16_t value, uint8_t channel) {
     uint8_t dataCh = sensor_dataChannels[channel];
 
@@ -41,6 +49,7 @@ void sensor_send_data(struct cc1101 *cc, uint16_t value, uint8_t channel) {
     }
 }
 
+// TODO: Reuse static adc here (if that is the intended behavior)
 void sensor_send(struct cc1101 *cc,ADC_HandleTypeDef *adc) {
     switch (hw_id()) {
         case 0x3133:
