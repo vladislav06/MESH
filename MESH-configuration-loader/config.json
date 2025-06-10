@@ -1,5 +1,5 @@
 {
-  "version": 12,
+  "version": 21,
   "data": [
     {
       "place": 1,
@@ -13,6 +13,26 @@
         }
       ],
       "algo": "x=a*2,out(0,x)"
+    },
+    {
+      "place": 2,
+      "usedChannels": [
+        {
+          "var": "r",
+          "dataCh": 2,
+          "place": 2,
+          "sensorCh": 0,
+          "MixMode": 0
+        },
+        {
+          "var": "l",
+          "dataCh": 1,
+          "place": 2,
+          "sensorCh": 0,
+          "MixMode": 0
+        }
+      ],
+      "algo": "if(l>150,out(0,r),out(0,0))"
     }
   ]
 }

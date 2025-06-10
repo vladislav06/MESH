@@ -458,6 +458,8 @@ static struct expr expr_varref(struct expr_var *v) {
 
 struct expr *expr_create(const char *str, size_t len,
                          struct expr_func *funcs) {
+    memset(&parsing, 0, sizeof(struct parsing_t));
+
     float num;
     struct expr_var *v;
     const char *id = NULL;

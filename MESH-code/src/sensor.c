@@ -7,6 +7,7 @@
 #include "hw.h"
 #include "routing.h"
 #include "cc1101.h"
+#include "ld2410b.h"
 
 // 1 by default
 uint8_t sensor_place = 1;
@@ -17,15 +18,20 @@ uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT] = {1, 2};
 
 struct Subscriber subscribers[SUBSCRIBER_COUNT] = {0};
 
-static UART_HandleTypeDef *uart;
-static ADC_HandleTypeDef *adc;
+UART_HandleTypeDef *uart;
+ADC_HandleTypeDef *adc;
+struct cc1101 *cc;
+struct ld2410b ld;
 
-void sensor_init(UART_HandleTypeDef *uartPassed, ADC_HandleTypeDef *adcPassed) {
+void sensor_init(struct cc1101 *ccPassed, UART_HandleTypeDef *uartPassed, ADC_HandleTypeDef *adcPassed) {
     uart = uartPassed;
     adc = adcPassed;
+    cc = ccPassed;
+    hw_enable_ld(true);
+    ld2410b_create(&ld, uart);
 }
 
-void sensor_send_data(struct cc1101 *cc, uint16_t value, uint8_t channel) {
+void sensor_send_data(uint16_t value, uint8_t channel) {
     uint8_t dataCh = sensor_dataChannels[channel];
 
     for (int sub = 0; sub < SUBSCRIBER_COUNT; sub++) {
@@ -49,13 +55,15 @@ void sensor_send_data(struct cc1101 *cc, uint16_t value, uint8_t channel) {
     }
 }
 
-// TODO: Reuse static adc here (if that is the intended behavior)
-void sensor_send(struct cc1101 *cc,ADC_HandleTypeDef *adc) {
+void sensor_send() {
     switch (hw_id()) {
         case 0x3133:
 //        case 0x4f4d:
-            sensor_send_data(cc, hw_read_analog(adc, 0), 0);
+            sensor_send_data(hw_read_analog(adc, 0), 0);
             break;
-
+        case 0x3f50:
+        case 0x2850:
+            ld2410b_processReport(&ld);
+            sensor_send_data(ld.target_distanceStationary, 1);
     }
 }

@@ -124,12 +124,6 @@ void cc1101_create(struct cc1101 *instance, uint16_t cs, uint16_t gd0, uint16_t 
     instance->gd0 = gd0;
     instance->gd2 = gd2;
     instance->currentState = STATE_IDLE;
-    instance->config.mod = MOD_2FSK;
-    instance->config.pktLenMode = PKT_LEN_MODE_FIXED;
-    instance->config.addrFilterMode = ADDR_FILTER_MODE_NONE;
-    instance->config.freq = 433.5;
-    instance->config.drate = 4.0;
-    instance->config.power = 0;
     instance->recvCallbackEn = 0;
     instance->spi = hspi;
     instance->rxPckLen = 0;
@@ -183,21 +177,20 @@ void cc1101_setConfig(struct cc1101 *instance, struct CCconfig config) {
 
     //lock
     instance->trState = TRX_DISABLE;
-    instance->config = config;
     _setState(instance, STATE_IDLE);
 
-    cc1101_setModulation(instance, instance->config.mod);
-    cc1101_setFrequency(instance, instance->config.freq);
-    cc1101_setOutputPower(instance, instance->config.power);
-    cc1101_setDataRate(instance, instance->config.drate);
-    cc1101_setAddressFilteringMode(instance, instance->config.addrFilterMode);
-    cc1101_setPreambleLength(instance, instance->config.preambleLen);
-    cc1101_setFrequencyDeviation(instance, instance->config.freqDev);
-    cc1101_setRxBandwidth(instance, instance->config.bandwidth);
-    cc1101_setPacketLengthMode(instance, instance->config.pktLenMode, instance->config.packetMaxLen);
-    cc1101_setCrc(instance, instance->config.crc);
-    cc1101_setSyncWord(instance, instance->config.syncWord);
-    cc1101_setSyncMode(instance, instance->config.syncMode);
+    cc1101_setModulation(instance, config.mod);
+    cc1101_setFrequency(instance, config.freq);
+    cc1101_setOutputPower(instance, config.power, &config);
+    cc1101_setDataRate(instance, config.drate, &config);
+    cc1101_setAddressFilteringMode(instance, config.addrFilterMode);
+    cc1101_setPreambleLength(instance, config.preambleLen);
+    cc1101_setFrequencyDeviation(instance, config.freqDev);
+    cc1101_setRxBandwidth(instance, config.bandwidth);
+    cc1101_setPacketLengthMode(instance, config.pktLenMode, config.packetMaxLen);
+    cc1101_setCrc(instance, config.crc);
+    cc1101_setSyncWord(instance, config.syncWord);
+    cc1101_setSyncMode(instance, config.syncMode);
 
 }
 
@@ -285,7 +278,7 @@ enum CCStatus cc1101_setChannelSpacing(struct cc1101 *instance, double sp) {
     return STATUS_OK;
 }
 
-enum CCStatus cc1101_setDataRate(struct cc1101 *instance, double drate) {
+enum CCStatus cc1101_setDataRate(struct cc1101 *instance, double drate, struct CCconfig *config) {
 
     static const double range[][2] = {
             [MOD_2FSK]    = {0.6, 500.0},  /* 0.6 - 500 kBaud */
@@ -298,7 +291,7 @@ enum CCStatus cc1101_setDataRate(struct cc1101 *instance, double drate) {
             [MOD_MSK]     = {26.0, 500.0}
     };
 
-    if (drate < range[instance->config.mod][0] || drate > range[instance->config.mod][1]) {
+    if (drate < range[config->mod][0] || drate > range[config->mod][1]) {
         return STATUS_INVALID_PARAM;
     }
 
@@ -358,7 +351,7 @@ enum CCStatus cc1101_setRxBandwidth(struct cc1101 *instance, double bw) {
     return STATUS_OK;
 }
 
-void cc1101_setOutputPower(struct cc1101 *instance, int8_t power) {
+void cc1101_setOutputPower(struct cc1101 *instance, int8_t power, struct CCconfig *config) {
 
     static const uint8_t powers[][8] = {
             [0 /* 315 Mhz */ ] = {0x12, 0x0d, 0x1c, 0x34, 0x51, 0x85, 0xcb, 0xc2},
@@ -369,11 +362,11 @@ void cc1101_setOutputPower(struct cc1101 *instance, int8_t power) {
 
     uint8_t powerIdx, freqIdx;
 
-    if (instance->config.freq <= 348.0) {
+    if (config->freq <= 348.0) {
         freqIdx = 0;
-    } else if (instance->config.freq <= 464.0) {
+    } else if (config->freq <= 464.0) {
         freqIdx = 1;
-    } else if (instance->config.freq <= 855.0) {
+    } else if (config->freq <= 855.0) {
         freqIdx = 2;
     } else {
         freqIdx = 3;
@@ -398,7 +391,7 @@ void cc1101_setOutputPower(struct cc1101 *instance, int8_t power) {
     }
 
 
-    if (instance->config.mod == MOD_ASK_OOK) {
+    if (config->mod == MOD_ASK_OOK) {
         /* No shaping. Use only the first 2 entries in the power table. */
         uint8_t data[2] = {0x00, powers[freqIdx][powerIdx]};
         _writeRegBurst(instance, CC1101_REG_PATABLE, data, sizeof(data));
@@ -455,7 +448,6 @@ void cc1101_setSyncMode(struct cc1101 *instance, enum CCSyncMode mode) {
 }
 
 void cc1101_setPacketLengthMode(struct cc1101 *instance, enum CCPacketLengthMode mode, uint8_t length) {
-    instance->config.pktLenMode = mode;
     _writeRegField(instance, CC1101_REG_PKTCTRL0, (uint8_t) mode, 1, 0);
     _writeReg(instance, CC1101_REG_PKTLEN, length);
 }
@@ -553,9 +545,9 @@ enum CCStatus cc1101_transmit_sync(struct cc1101 *instance, uint8_t *data, size_
         _readRegBurst(instance, CC1101_REG_FIFO, instance->rxBuf, bytesInRX);
 
         _setState(instance, STATE_TX);
-        if(_getState(instance)==STATE_RXFIFO_OVERFLOW){
+        if (_getState(instance) == STATE_RXFIFO_OVERFLOW) {
             _flushRxBuffer(instance);
-            _setState(instance,STATE_TX);
+            _setState(instance, STATE_TX);
         }
         // something is wrong, proceed with transmission
 //        if (HAL_GetTick() - 1000 > time) {

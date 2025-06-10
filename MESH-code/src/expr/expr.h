@@ -5,11 +5,11 @@
 #include <stdio.h>
 
 #define EXPR_TOKEN_COUNT    50
-#define EXPR_VAR_COUNT      10
+#define EXPR_VAR_COUNT      18
 #define EXPR_ARG_SIZE        4
 #define EXPR_VAR_NAME_SIZE   3
 #define EXPR_FN_NAME_SIZE    4
-#define EXPR_PARSE_SIZE      10
+#define EXPR_PARSE_SIZE      13
 
 
 #define vec(T)                                                                 \

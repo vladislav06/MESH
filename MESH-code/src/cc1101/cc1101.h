@@ -112,8 +112,6 @@ struct cc1101 {
     enum CCState currentState;
     enum CCDefState defaultState;
 
-    struct CCconfig config;
-
     uint8_t recvCallbackEn;
 
     void (*receive_callback)(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq);
@@ -163,11 +161,11 @@ void cc1101_setChannel(struct cc1101 *instance, uint8_t ch);
 
 enum CCStatus cc1101_setChannelSpacing(struct cc1101 *instance, double sp);
 
-enum CCStatus cc1101_setDataRate(struct cc1101 *instance, double drate);
+enum CCStatus cc1101_setDataRate(struct cc1101 *instance, double drate, struct CCconfig *config);
 
 enum CCStatus cc1101_setRxBandwidth(struct cc1101 *instance, double bw);
 
-void cc1101_setOutputPower(struct cc1101 *instance, int8_t power);
+void cc1101_setOutputPower(struct cc1101 *instance, int8_t power, struct CCconfig *config);
 
 /* Enable CRC calculation in TX and CRC check in RX. */
 void cc1101_setCrc(struct cc1101 *instance, uint8_t enable);

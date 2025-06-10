@@ -36,7 +36,6 @@ struct DiscoveryRequest {
 
 struct DiscoveryRequest discoveryRequests[DISCOVERY_REQUEST_COUNT] = {0};
 
-//static uint8_t responseBuffer[255];
 static struct cc1101 *cc;
 
 static uint8_t indexCounter = 0;
@@ -53,12 +52,19 @@ void on_receive(uint8_t *data, uint8_t len, uint8_t rssi, uint8_t lq) {
     hw_set_D3(true);
     struct Packet *pck = (struct Packet *) data;
 
+    float dbm = cc1101_rssiToDbm(rssi);
+
+    //ignore low power packets
+    if (dbm < -80) {
+        hw_set_D3(false);
+        return;
+    }
 
     if (!isPacketValid(pck)) {
         hw_set_D3(false);
         return;
     }
-    float dbm = cc1101_rssiToDbm(rssi);
+
     LOG("Packet received rssi: %d.%d LQ:%d FROM:%04x TYPE:%d\n", (int) dbm, (int) (dbm - ((int) dbm)) * 100, lq,
         pck->sourceId, pck->packetType);
 
@@ -348,6 +354,9 @@ uint8_t handle_CPR(struct Packet *pck) {
     if (pckCPR->header.finalDestination != hw_id()) {
         return 0;
     }
+    if (pckCPR->start >= EEPROM_SIZE - 225) {
+        return 0;
+    }
     //respond with part of configuration
     struct PacketCPRS *response = PCK_INIT(CPRS, cc->txBuf + 1);
     response->header.originalSource = hw_id();
@@ -592,6 +601,7 @@ void try_subscribe(uint8_t place, uint8_t sensorCh, uint8_t dataCh) {
             calc_crc((struct Packet *) &packetCSR);
             indexCounter++;
             cc1101_transmit_sync(cc, (uint8_t *) &packetCSR, sizeof(struct PacketCSR), 0);
+            HAL_Delay(10);
         }
         for (int n = 0; n < DESTINATION_COUNT; n++) {
             if ((neighbourTable[i].destinations[n].place == place || place == 0) &&
@@ -614,6 +624,7 @@ void try_subscribe(uint8_t place, uint8_t sensorCh, uint8_t dataCh) {
                 calc_crc((struct Packet *) &packetCSR);
                 indexCounter++;
                 cc1101_transmit_sync(cc, (uint8_t *) &packetCSR, sizeof(struct PacketCSR), 0);
+                HAL_Delay(10);
             }
         }
     }

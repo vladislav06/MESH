@@ -26,10 +26,10 @@ struct Subscriber {
 
 extern struct Subscriber subscribers[SUBSCRIBER_COUNT];
 
-void sensor_init(UART_HandleTypeDef *uart, ADC_HandleTypeDef *adc);
+void sensor_init(struct cc1101 *cc, UART_HandleTypeDef *uart, ADC_HandleTypeDef *adc);
 
-void sensor_send(struct cc1101 *cc,ADC_HandleTypeDef *adc);
+void sensor_send();
 
-void sensor_send_data(struct cc1101 *cc, uint16_t value, uint8_t channel);
+void sensor_send_data(uint16_t value, uint8_t channel);
 
 #endif //MESH_CODE_SENSOR_H

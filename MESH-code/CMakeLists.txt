@@ -30,6 +30,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 
+add_compile_options()
+
 #add_link_options( -u _printf_float)
 # use tinyprintf
 add_link_options(-Wl,--wrap,printf -Wl,--wrap,fprintf -Wl,--wrap,sprintf -Wl,--wrap,asprintf

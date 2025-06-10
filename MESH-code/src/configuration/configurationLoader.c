@@ -85,7 +85,7 @@ bool configuration_wireless_start_load(struct cc1101 *cc) {
             //part update successful
             if (update_process >= update_length) {
                 //all was downloaded
-                updater_id=0;
+                updater_id = 0;
                 return true;
             }
         }

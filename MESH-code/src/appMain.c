@@ -91,16 +91,26 @@ void appMain(ADC_HandleTypeDef *hadc,
     cc1101_start_receive(&cc);
 
     uint32_t counter = 0;
+
     switch (hw_id()) {
-        case 0x3133:
-            sensor_place = 10;
-            sensor_sensorCh = 10;
+        case 0X4f4d:
+            sensor_place = 2;
+            sensor_sensorCh = 0;
             break;
-//        case 0x4f4d:
-//            sensor_place = 9;
-//            sensor_sensorCh = 9;
-//            break;
+        case 0x3133:
+            sensor_place = 2;
+            sensor_sensorCh = 3;
+            break;
+        case 0x3f50:
+            sensor_place = 2;
+            sensor_sensorCh = 2;
+            break;
+        case 0x2850:
+            sensor_place = 2;
+            sensor_sensorCh = 1;
+            break;
     }
+
     if (configuration_usb_data_available()) {
         if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
             configuration_usb_start_load();
@@ -120,6 +130,7 @@ void appMain(ADC_HandleTypeDef *hadc,
 
     actuator_subscribe();
 
+    sensor_init(&cc, huart2, hadc);
 
 
     // main loop, runs at 10Hz
@@ -127,11 +138,11 @@ void appMain(ADC_HandleTypeDef *hadc,
 
         uint32_t start = HAL_GetTick();
         // usb config load every second
-        if (counter% 10 == 0) {
+        if (counter % 10 == 0) {
             if (configuration_usb_data_available()) {
                 if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
                     configuration_usb_start_load();
-                    printf("Configuration was loaded, version:%d\n",configuration_version);
+                    printf("Configuration was loaded, version:%d\n", configuration_version);
                     actuator_load_config();
                     actuator_subscribe();
                 }
@@ -163,7 +174,7 @@ void appMain(ADC_HandleTypeDef *hadc,
 
         //send sensor data every second
         if (counter % 10 == 5) {
-            sensor_send(&cc, hadc);
+            sensor_send();
         }
 
         // each 5s ask neighbour for configuration version
@@ -185,7 +196,7 @@ void appMain(ADC_HandleTypeDef *hadc,
         if (updater_id != 0) {
             // new update is available, initiate update procedure
             configuration_wireless_start_load(&cc);
-            printf("Configuration was loaded, version:%d\n",configuration_version);
+            printf("Configuration was loaded, version:%d\n", configuration_version);
             actuator_load_config();
             actuator_subscribe();
         }

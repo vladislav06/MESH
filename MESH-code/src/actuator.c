@@ -62,7 +62,7 @@ void actuator_load_config() {
         uint16_t algoLength = EEPROM_DATA[bytePos] | EEPROM_DATA[bytePos + 1] << 8;
         bytePos += 2;
         bytePos += algoLength * sizeof(char);
-
+        bytePos++;
         // Onto the next one
         skippedPlaceCount++;
     }
@@ -85,14 +85,8 @@ void actuator_load_config() {
     const uint16_t algoLength = EEPROM_DATA[bytePos] | EEPROM_DATA[bytePos + 1] << 8;
     bytePos += 2;
 
-    // TODO: Implement real functions for user_funcs later.
-    static struct expr_func user_funcs[] = {
-            {"out",expr_out},
-            {"if",expr_if},
-            {"", nullptr},
-    };
 
-    expression = expr_create(&EEPROM_DATA[bytePos], algoLength, user_funcs);
+//    expression = expr_create(&EEPROM_DATA[bytePos], algoLength, user_funcs);
     bytePos += algoLength;
 }
 
@@ -169,8 +163,57 @@ void actuator_expr_eval() {
         // Keep iterating to map everything else
         bytePos += sizeof(struct DataChannel);
     }
-    // Call evaluate
-    expr_eval(expression);
+
+    // Read algo - bytePos should already point to algoLength
+    const uint16_t algoLength = EEPROM_DATA[bytePos] | EEPROM_DATA[bytePos + 1] << 8;
+    bytePos += 2;
+
+
+
+
+
+    static struct expr_func user_funcs[] = {
+            {"out", expr_out},
+            {"if",  expr_if},
+            {"",    nullptr},
+    };
+
+    //evaluate each coma separated expression individually
+    uint16_t inside = 0;
+    uint16_t lastComa = 0;
+    for (int i = 0; i < algoLength; i++) {
+        if (*(&EEPROM_DATA[bytePos] + i) == '(') {
+            inside++;
+            continue;
+        }
+        if (*(&EEPROM_DATA[bytePos] + i) == ')') {
+            inside--;
+        }
+        if (*(&EEPROM_DATA[bytePos] + i) == ',' && inside == 0) {
+            //eval
+            expr_destroy_expr();
+            struct expr *e = expr_create((char *) ((&EEPROM_DATA[bytePos]) + lastComa), i - lastComa, user_funcs);
+            if (e == nullptr) {
+                printf("Expr cant be compiled\n");
+                return;
+            }
+            expr_eval(e);
+            lastComa = i + 1;
+        }
+        //last expr without coma
+        if (i + 2 == algoLength) {
+            //eval
+            expr_destroy_expr();
+            struct expr *e = expr_create((char *) ((&EEPROM_DATA[bytePos]) + lastComa), i - lastComa + 2, user_funcs);
+            if (e == nullptr) {
+                printf("Expr cant be compiled\n");
+                return;
+            }
+            expr_eval(e);
+        }
+    }
+
+
     for (int i = 0; i < OUTPUT_COUNT; i++) {
         printf("expr out[%d]: %d.%d\n", i, (int) output[i], (int) ((output[i] - (int) output[i]) * 100));
     }
