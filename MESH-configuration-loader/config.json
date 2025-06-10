@@ -12,7 +12,7 @@
           "MixMode": 0
         }
       ],
-      "algo": "x=a*2,out(0,x)"
+      "algo": "x=a,out(0,x)"
     },
     {
       "place": 2,
@@ -32,7 +32,7 @@
           "MixMode": 0
         }
       ],
-      "algo": "if(l>150,out(0,r),out(0,0))"
+      "algo": "if(l>500,out(0,r),out(0,0))"
     }
   ]
 }

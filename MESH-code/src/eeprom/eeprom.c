@@ -3,6 +3,7 @@
 //
 
 #include "eeprom.h"
+#include "hw.h"
 
 
 const uint8_t *EEPROM_DATA = (uint8_t *) EEPROM_PTR;
@@ -10,7 +11,7 @@ const uint8_t *EEPROM_DATA = (uint8_t *) EEPROM_PTR;
 /**
  * Size of data must be multiple of 32 bytes
  */
-void eeprom_store(uint8_t *data, uint32_t size, uint32_t offset) {
+void eeprom_store_large(uint8_t *data, uint32_t size, uint32_t offset) {
     HAL_FLASHEx_DATAEEPROM_Unlock();
     FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);
 
@@ -30,6 +31,19 @@ void eeprom_store(uint8_t *data, uint32_t size, uint32_t offset) {
     // because flash is not read-while-write and the whole cpu waits for flash to be readable again
     for (uint32_t i = 0; i < size / 32; i++) {
         *(__IO struct mem *) ((struct mem *) eepromStart + i) = ((struct mem *) data)[i];
+    }
+
+    FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);
+    HAL_FLASHEx_DATAEEPROM_Lock();
+}
+
+void eeprom_store(uint8_t *data, uint32_t size, uint32_t offset) {
+    HAL_FLASHEx_DATAEEPROM_Unlock();
+
+    uint8_t *eepromStart = (uint8_t *) (EEPROM_PTR + offset);
+
+    for (uint32_t i = 0; i < size; i++) {
+        *(eepromStart + i) = data[i];
     }
 
     FLASH_WaitForLastOperation(FLASH_TIMEOUT_VALUE);

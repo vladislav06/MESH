@@ -7,7 +7,7 @@
 
 #include "protocol.h"
 
-#define OUTPUT_COUNT 1
+#define OUTPUT_COUNT 10
 
 extern uint16_t configuration_version;
 extern uint16_t configuration_length;

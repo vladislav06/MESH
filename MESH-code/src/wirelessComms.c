@@ -377,7 +377,7 @@ uint8_t handle_CPRS(struct Packet *pck) {
     }
     update_process += 224;
     //flash Configuration
-    eeprom_store(pckCPRS->data, 224, pckCPRS->start);
+    eeprom_store_large(pckCPRS->data, 224, pckCPRS->start);
     return 0;
 }
 

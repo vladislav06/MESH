@@ -14,6 +14,8 @@
 #include "sensor.h"
 #include "configuration.h"
 #include "wirelessComms.h"
+#include "hw.h"
+#include "actuatorImpl.h"
 
 uint16_t configuration_version;
 uint16_t configuration_length;
@@ -30,6 +32,10 @@ float expr_out(struct expr_func *f, struct expr_ptr_arr_t *args, void *c);
 
 /// Public functions
 void actuator_load_config() {
+    struct SensorConfig config = hw_get_sensor_config();
+    sensor_place = config.place;
+    sensor_sensorCh = config.sensor_ch;
+
     // Get current place
     const uint8_t intendedPlace = sensor_place;
     // 0 and 1 hold 0x6996 (garbage-saving purposes), 2 holds the configuration version
@@ -169,9 +175,6 @@ void actuator_expr_eval() {
     bytePos += 2;
 
 
-
-
-
     static struct expr_func user_funcs[] = {
             {"out", expr_out},
             {"if",  expr_if},
@@ -216,6 +219,7 @@ void actuator_expr_eval() {
 
     for (int i = 0; i < OUTPUT_COUNT; i++) {
         printf("expr out[%d]: %d.%d\n", i, (int) output[i], (int) ((output[i] - (int) output[i]) * 100));
+        actuator_process(i, (uint16_t)output[i]);
     }
 }
 

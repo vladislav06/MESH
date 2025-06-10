@@ -2,6 +2,7 @@
 // Created by vm on 25.1.5.
 //
 #include "hw.h"
+#include "eeprom.h"
 
 void hw_set_D4(bool state) {
     HAL_GPIO_WritePin(GPIOA, D4, state);
@@ -86,5 +87,16 @@ uint32_t hw_read_analog(ADC_HandleTypeDef *adc, uint32_t pin) {
     HAL_ADC_ConfigChannel(adc, &sConfig);
     HAL_ADC_Stop(adc);
     return val;
+}
+
+void hw_set_sensor_config(struct SensorConfig place) {
+    eeprom_store((uint8_t *) &place, sizeof(struct SensorConfig), EEPROM_SIZE - sizeof(struct SensorConfig));
+}
+
+struct SensorConfig hw_get_sensor_config() {
+
+    struct SensorConfig result = *(struct SensorConfig *) ((uint8_t *) (EEPROM_PTR + (EEPROM_SIZE -
+                                                                                      sizeof(struct SensorConfig))));
+    return result;
 }
 

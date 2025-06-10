@@ -8,7 +8,7 @@
 #include "eeprom.h"
 #include "wirelessComms.h"
 #include "actuator.h"
-
+#include "hw.h"
 uint8_t *rxBuf;
 uint32_t rxLen;
 bool receiveFlag = false;
@@ -40,7 +40,7 @@ void configuration_usb_start_load() {
     uint16_t counter = 0;
     while (true) {
         if (configuration_usb_data_available()) {
-            eeprom_store(rxBuf, 64, counter);
+            eeprom_store_large(rxBuf, 64, counter);
             counter += 64;
             configuration_usb_packet_processed();
         } else {

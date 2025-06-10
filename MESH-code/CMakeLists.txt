@@ -72,6 +72,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
         src/protocol/routing.c
         src/protocol/protocol.c
         src/configuration/configurationLoader.c
+        src/impl/actuatorImpl.c
 )
 
 # Add include paths
@@ -86,6 +87,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         src/expr
         src/eeprom
         src/protocol
+        src/impl
 )
 
 # Add project symbols (macros)

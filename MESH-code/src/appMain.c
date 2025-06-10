@@ -20,7 +20,7 @@
 #include "configuration/configurationLoader.h"
 #include "eeprom.h"
 #include "actuator.h"
-
+#include "actuatorImpl.h"
 static struct cc1101 cc;
 static int n = 0;
 
@@ -36,7 +36,7 @@ void appMain(ADC_HandleTypeDef *hadc,
     printf("%#08lX\r\n", HAL_GetUIDw2());
 
     // init utilities
-    hw_enable_ld(true);
+    actuator_impl_init();
     utils_init(htim6, huart2, hcrc, hrng);
     configuration_usb_load_init();
 
@@ -92,39 +92,24 @@ void appMain(ADC_HandleTypeDef *hadc,
 
     uint32_t counter = 0;
 
-    switch (hw_id()) {
-        case 0X4f4d:
-            sensor_place = 2;
-            sensor_sensorCh = 0;
-            break;
-        case 0x3133:
-            sensor_place = 2;
-            sensor_sensorCh = 3;
-            break;
-        case 0x3f50:
-            sensor_place = 2;
-            sensor_sensorCh = 2;
-            break;
-        case 0x2850:
-            sensor_place = 2;
-            sensor_sensorCh = 1;
-            break;
-    }
-
-    if (configuration_usb_data_available()) {
-        if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
-            configuration_usb_start_load();
-            printf("Data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
-        }
-        configuration_usb_packet_processed();
-    }
-    if (configuration_usb_data_available()) {
-        if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
-            configuration_usb_start_load();
-            printf("Data was loaded! %2x %2x\n", EEPROM_DATA[0], EEPROM_DATA[1]);
-        }
-        configuration_usb_packet_processed();
-    }
+//    switch (hw_id()) {
+//        case 0X4f4d:
+//            sensor_place = 2;
+//            sensor_sensorCh = 0;
+//            break;
+//        case 0x3133:
+//            sensor_place = 2;
+//            sensor_sensorCh = 3;
+//            break;
+//        case 0x3f50:
+//            sensor_place = 2;
+//            sensor_sensorCh = 2;
+//            break;
+//        case 0x2850:
+//            sensor_place = 2;
+//            sensor_sensorCh = 1;
+//            break;
+//    }
 
     actuator_load_config();
 
@@ -143,6 +128,12 @@ void appMain(ADC_HandleTypeDef *hadc,
                 if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
                     configuration_usb_start_load();
                     printf("Configuration was loaded, version:%d\n", configuration_version);
+                    actuator_load_config();
+                    actuator_subscribe();
+                }
+                if (rxLen > 4  && rxBuf[0] == 0x69 && rxBuf[1] == 0x97) {
+                    hw_set_sensor_config(*(struct SensorConfig *) (rxBuf + 2));
+                    printf("Place and sensorCh were updated\n");
                     actuator_load_config();
                     actuator_subscribe();
                 }

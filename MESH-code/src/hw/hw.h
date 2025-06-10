@@ -6,6 +6,7 @@
 #define MESH_CODE_HW_H
 
 #include "utils.h"
+#include "sensor.h"
 
 #define D3 GPIO_PIN_15
 #define D4 GPIO_PIN_1
@@ -19,11 +20,21 @@ void hw_set_D4(bool state);
 
 void hw_set_D3(bool state);
 
-uint32_t hw_read_analog(ADC_HandleTypeDef *adc,uint32_t pin);
+uint32_t hw_read_analog(ADC_HandleTypeDef *adc, uint32_t pin);
 
 void hw_enable_ld(bool state);
 
 uint16_t hw_id(void);
+
+struct SensorConfig {
+    uint8_t place;
+    uint8_t sensor_ch;
+    uint8_t mapping[DATA_CHANNEL_COUNT];
+};
+
+void hw_set_sensor_config(struct SensorConfig place);
+
+struct SensorConfig hw_get_sensor_config();
 
 
 // interrupt stuff

@@ -12,8 +12,7 @@
 // 1 by default
 uint8_t sensor_place = 1;
 uint8_t sensor_sensorCh = 1;
-// data will be posted to channels 1 and 2
-uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT] = {1, 2};
+uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT] = {0};
 
 
 struct Subscriber subscribers[SUBSCRIBER_COUNT] = {0};
@@ -23,16 +22,19 @@ ADC_HandleTypeDef *adc;
 struct cc1101 *cc;
 struct ld2410b ld;
 
+#include "impl/sensorImpl.h"
+
 void sensor_init(struct cc1101 *ccPassed, UART_HandleTypeDef *uartPassed, ADC_HandleTypeDef *adcPassed) {
     uart = uartPassed;
     adc = adcPassed;
     cc = ccPassed;
     hw_enable_ld(true);
     ld2410b_create(&ld, uart);
+    // fake data request to fill sensor_dataChannels
+    get_data(0);
 }
 
-void sensor_send_data(uint16_t value, uint8_t channel) {
-    uint8_t dataCh = sensor_dataChannels[channel];
+void sensor_send_data(uint16_t value, uint8_t dataCh) {
 
     for (int sub = 0; sub < SUBSCRIBER_COUNT; sub++) {
         if (subscribers[sub].id != 0) {
@@ -55,15 +57,17 @@ void sensor_send_data(uint16_t value, uint8_t channel) {
     }
 }
 
+
 void sensor_send() {
-    switch (hw_id()) {
-        case 0x3133:
-//        case 0x4f4d:
-            sensor_send_data(hw_read_analog(adc, 0), 0);
-            break;
-        case 0x3f50:
-        case 0x2850:
-            ld2410b_processReport(&ld);
-            sensor_send_data(ld.target_distanceStationary, 1);
+    if (!is_sensor()) {
+        return;
+    }
+    for (int i = 0; i < DATA_CHANNEL_COUNT; i++) {
+        if (sensor_dataChannels[i] != 0) {
+            uint16_t data = get_data(i+1);
+            struct SensorConfig config = hw_get_sensor_config();
+            sensor_send_data(data, config.mapping[i]);
+        }
     }
 }
+

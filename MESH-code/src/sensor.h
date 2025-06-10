@@ -8,13 +8,15 @@
 #include "stdint.h"
 #include "cc1101.h"
 
-#define DATA_CHANNEL_COUNT 2
+
+#define DATA_CHANNEL_COUNT 5
 #define SUBSCRIBER_COUNT 10
 
 
 extern uint8_t sensor_place;
 extern uint8_t sensor_sensorCh;
 extern ADC_HandleTypeDef *adc;
+
 
 
 extern uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT];
