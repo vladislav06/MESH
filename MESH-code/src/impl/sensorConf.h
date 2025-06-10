@@ -7,7 +7,7 @@
 bool _() {
 #endif
 
-    NODE(0x3133)
+    NODE(0x3133,0x2f33)
     {
         CH(1) {
             return hw_read_analog(adc, 0);

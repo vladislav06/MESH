@@ -130,8 +130,9 @@ uint8_t handle_CSR(struct Packet *pck) {
             (pckCSR->sensorCh == sensor_sensorCh || pckCSR->sensorCh == 0)) {
             routing_processPacket(pck);
             //check if requested data channel exists
-            for (int ch = 0; ch < DATA_CHANNEL_COUNT; ch++) {
-                if (sensor_dataChannels[ch] == pckCSR->dataCh) {
+            struct SensorConfig config = hw_get_sensor_config();
+            for (int ch = 0; ch < SENSOR_CHANNEL_COUNT; ch++) {
+                if (config.mapping[ch] == pckCSR->dataCh) {
                     LOG("valid CSR received\n");
                     //try save to subscriber list
                     for (int subs = 0; subs < SUBSCRIBER_COUNT; subs++) {
@@ -195,8 +196,8 @@ uint8_t handle_CSR(struct Packet *pck) {
 //        (pckCSR->sensorCh == sensor_sensorCh || pckCSR->sensorCh == 0)) {
 //        routing_processPacket(pck);
 //        //check if requested data channel exists
-//        for (int ch = 0; ch < DATA_CHANNEL_COUNT; ch++) {
-//            if (sensor_dataChannels[ch] == pckCSR->dataCh) {
+//        for (int ch = 0; ch < SENSOR_CHANNEL_COUNT; ch++) {
+//            if (sensor_channels[ch] == pckCSR->dataCh) {
 //                LOG("valid CSR received\n");
 //                //try save to subscriber list
 //                for (int subs = 0; subs < SUBSCRIBER_COUNT; subs++) {

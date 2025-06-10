@@ -12,7 +12,7 @@
 // 1 by default
 uint8_t sensor_place = 1;
 uint8_t sensor_sensorCh = 1;
-uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT] = {0};
+uint8_t sensor_channels[SENSOR_CHANNEL_COUNT] = {0};
 
 
 struct Subscriber subscribers[SUBSCRIBER_COUNT] = {0};
@@ -30,7 +30,7 @@ void sensor_init(struct cc1101 *ccPassed, UART_HandleTypeDef *uartPassed, ADC_Ha
     cc = ccPassed;
     hw_enable_ld(true);
     ld2410b_create(&ld, uart);
-    // fake data request to fill sensor_dataChannels
+    // fake data request to fill sensor_channels
     get_data(0);
 }
 
@@ -62,11 +62,12 @@ void sensor_send() {
     if (!is_sensor()) {
         return;
     }
-    for (int i = 0; i < DATA_CHANNEL_COUNT; i++) {
-        if (sensor_dataChannels[i] != 0) {
+    for (int i = 0; i < SENSOR_CHANNEL_COUNT; i++) {
+        if (sensor_channels[i] != 0) {
             uint16_t data = get_data(i+1);
             struct SensorConfig config = hw_get_sensor_config();
             sensor_send_data(data, config.mapping[i]);
+            HAL_Delay(10);
         }
     }
 }

@@ -9,7 +9,7 @@
 #include "cc1101.h"
 
 
-#define DATA_CHANNEL_COUNT 5
+#define SENSOR_CHANNEL_COUNT 5
 #define SUBSCRIBER_COUNT 10
 
 
@@ -19,7 +19,7 @@ extern ADC_HandleTypeDef *adc;
 
 
 
-extern uint8_t sensor_dataChannels[DATA_CHANNEL_COUNT];
+extern uint8_t sensor_channels[SENSOR_CHANNEL_COUNT];
 
 struct Subscriber {
     uint16_t id;

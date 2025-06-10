@@ -8,7 +8,7 @@
 #include "hw.h"
 #include "macros.h"
 
-#define CH(X)  sensor_dataChannels[cntr++]=X;if(ch==X)
+#define CH(X)  sensor_channels[cntr++]=X;if(ch==X)
 #define QUALIFIER(X) ||X==hw_id()
 #define NODE(...) if(0 FOR_EACH(QUALIFIER,__VA_ARGS__) )
 

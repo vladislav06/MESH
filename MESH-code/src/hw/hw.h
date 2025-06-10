@@ -29,7 +29,7 @@ uint16_t hw_id(void);
 struct SensorConfig {
     uint8_t place;
     uint8_t sensor_ch;
-    uint8_t mapping[DATA_CHANNEL_COUNT];
+    uint8_t mapping[SENSOR_CHANNEL_COUNT];
 };
 
 void hw_set_sensor_config(struct SensorConfig place);

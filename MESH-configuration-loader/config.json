@@ -1,18 +1,25 @@
 {
-  "version": 21,
+  "version": 22,
   "data": [
     {
       "place": 1,
       "usedChannels": [
         {
-          "var": "a",
+          "var": "r",
+          "dataCh": 2,
+          "place": 0,
+          "sensorCh": 0,
+          "MixMode": 0
+        },
+         {
+          "var": "l",
           "dataCh": 1,
           "place": 0,
           "sensorCh": 0,
           "MixMode": 0
         }
       ],
-      "algo": "x=a,out(0,x)"
+      "algo": "x=r*2,if(l>500,out(0,x),out(0,0))"
     },
     {
       "place": 2,

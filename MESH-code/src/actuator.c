@@ -218,7 +218,7 @@ void actuator_expr_eval() {
 
 
     for (int i = 0; i < OUTPUT_COUNT; i++) {
-        printf("expr out[%d]: %d.%d\n", i, (int) output[i], (int) ((output[i] - (int) output[i]) * 100));
+//        printf("expr out[%d]: %d.%d\n", i, (int) output[i], (int) ((output[i] - (int) output[i]) * 100));
         actuator_process(i, (uint16_t)output[i]);
     }
 }

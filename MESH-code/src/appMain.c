@@ -21,6 +21,7 @@
 #include "eeprom.h"
 #include "actuator.h"
 #include "actuatorImpl.h"
+
 static struct cc1101 cc;
 static int n = 0;
 
@@ -48,7 +49,7 @@ void appMain(ADC_HandleTypeDef *hadc,
             .mod=MOD_GFSK,
             .freq=433.100,//Mhz
             .drate=10,//kbaud/s
-            .power=-20,
+            .power=-10,
             .pktLenMode=PKT_LEN_MODE_VARIABLE,
             .packetMaxLen=255,
             .addrFilterMode=ADDR_FILTER_MODE_NONE,
@@ -112,10 +113,21 @@ void appMain(ADC_HandleTypeDef *hadc,
 //    }
 
     actuator_load_config();
+    sensor_init(&cc, huart2, hadc);
+
+    struct SensorConfig sensorConfig = hw_get_sensor_config();
+
+    printf("Loaded config ver:%d Place: %d SensorCh:%d\n", configuration_version, sensorConfig.place,
+           sensorConfig.sensor_ch);
+
+    printf("Defined sensors and their mapping to DataCh:\n");
+    for (int i = 0; i < SENSOR_CHANNEL_COUNT; i++) {
+        printf("     sensor:%d -> %d\n", sensor_channels[i], sensorConfig.mapping[i]);
+    }
+
 
     actuator_subscribe();
 
-    sensor_init(&cc, huart2, hadc);
 
 
     // main loop, runs at 10Hz
@@ -131,7 +143,7 @@ void appMain(ADC_HandleTypeDef *hadc,
                     actuator_load_config();
                     actuator_subscribe();
                 }
-                if (rxLen > 4  && rxBuf[0] == 0x69 && rxBuf[1] == 0x97) {
+                if (rxLen > 4 && rxBuf[0] == 0x69 && rxBuf[1] == 0x97) {
                     hw_set_sensor_config(*(struct SensorConfig *) (rxBuf + 2));
                     printf("Place and sensorCh were updated\n");
                     actuator_load_config();
