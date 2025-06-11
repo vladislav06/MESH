@@ -34,4 +34,6 @@ void sensor_send();
 
 void sensor_send_data(uint16_t value, uint8_t channel);
 
+void sensor_remove_from_subscribers(uint16_t id, uint8_t dataCh);
+
 #endif //MESH_CODE_SENSOR_H

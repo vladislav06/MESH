@@ -139,14 +139,17 @@ void appMain(ADC_HandleTypeDef *hadc,
             if (configuration_usb_data_available()) {
                 if (rxLen > 2 && rxBuf[0] == 0x69 && rxBuf[1] == 0x96) {
                     configuration_usb_start_load();
-                    printf("Configuration was loaded, version:%d\n", configuration_version);
                     actuator_load_config();
+                    printf("Loaded config ver:%d Place: %d SensorCh:%d\n", configuration_version, sensorConfig.place,
+                           sensorConfig.sensor_ch);
                     actuator_subscribe();
                 }
                 if (rxLen > 4 && rxBuf[0] == 0x69 && rxBuf[1] == 0x97) {
                     hw_set_sensor_config(*(struct SensorConfig *) (rxBuf + 2));
-                    printf("Place and sensorCh were updated\n");
                     actuator_load_config();
+                    sensorConfig = hw_get_sensor_config();
+                    printf("Loaded config ver:%d Place: %d SensorCh:%d\n", configuration_version, sensorConfig.place,
+                           sensorConfig.sensor_ch);
                     actuator_subscribe();
                 }
                 configuration_usb_packet_processed();
@@ -226,6 +229,16 @@ void appMain(ADC_HandleTypeDef *hadc,
                 }
                 printf("\n");
             }
+            printf("\n");
+            printf("Subscribed Nodes:\n");
+            for (int i = 0; i < SUBSCRIBER_COUNT; i++) {
+                printf("%04x:%02d  ", subscribers[i].id, subscribers[i].dataCh);
+                if (i == 4) {
+                    printf("\n");
+                }
+            }
+            printf("\n");
+            printf("\n");
 //            memset(neighbourTable, 0, sizeof(struct NeighbourEntry) * NEIGHBOUR_TABLE_SIZE);
         }
 

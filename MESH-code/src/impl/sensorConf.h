@@ -13,7 +13,7 @@ bool _() {
             return hw_read_analog(adc, 0);
         }
     }
-    NODE(0x3f50, 0x2850)
+    NODE(0x3f50, 0x2850,0x3f4d)
     {
         CH(1) {
             ld2410b_processReport(&ld);

@@ -143,12 +143,14 @@ enum ACK_TYPE {
     ACK_OK,
     ACK_NO_ROUTE,
     ACK_NO_DATA_CH,
+    ACK_UNSUBSCRIBE
 };
 
 // Acknowledgement
 struct PacketACK {
     struct Packet header;
     enum ACK_TYPE ackType;
+    uint8_t dataCh;
 };
 
 bool isPacketValid(struct Packet *packet);

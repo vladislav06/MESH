@@ -1,8 +1,8 @@
 {
-  "version": 22,
+  "version": 23,
   "data": [
     {
-      "place": 1,
+      "place": 100,
       "usedChannels": [
         {
           "var": "r",
@@ -22,24 +22,17 @@
       "algo": "x=r*2,if(l>500,out(0,x),out(0,0))"
     },
     {
-      "place": 2,
+      "place": 101,
       "usedChannels": [
         {
           "var": "r",
           "dataCh": 2,
-          "place": 2,
-          "sensorCh": 0,
-          "MixMode": 0
-        },
-        {
-          "var": "l",
-          "dataCh": 1,
-          "place": 2,
+          "place": 0,
           "sensorCh": 0,
           "MixMode": 0
         }
       ],
-      "algo": "if(l>500,out(0,r),out(0,0))"
+      "algo": "out(0,r)"
     }
   ]
 }

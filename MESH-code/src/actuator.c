@@ -118,14 +118,15 @@ void actuator_subscribe() {
     }
 }
 
-
-void actuator_handle_CD(struct PacketCD *pck) {
+// returns false if this CD is no longer needed
+bool actuator_handle_CD(struct PacketCD *pck) {
     LOG("CD was received from:%4x dataCh: %d place: %d from: %d  =  %d\n",
         pck->header.originalSource, pck->dataCh,
         pck->place, pck->sensorCh, pck->value);
     if (configuration_version == 0 || placePosInEEPROM == 0) {
-        return;
+        return false;
     }
+    bool cdIsUsed = false;
     // Iterate through places
     uint16_t bytePos = placePosInEEPROM;
     bytePos++;
@@ -140,7 +141,8 @@ void actuator_handle_CD(struct PacketCD *pck) {
             (channel->sensorCh == pck->sensorCh || channel->sensorCh == 0)) {
             // Then use our inner array - at place i in usedChannels is the channel that matches
             // i.e. channel that matches is at index 0 in usedChannels? then value for it is in vars at index 0, too
-            vars[i] = pck->value;
+            vars[i] += pck->value;
+            cdIsUsed = true;
             break;
         }
         // Keep iterating to find channel if not found yet
@@ -149,6 +151,7 @@ void actuator_handle_CD(struct PacketCD *pck) {
 
     // Evaluate expression after all is done
     actuator_expr_eval();
+    return cdIsUsed;
 }
 
 void actuator_expr_eval() {
@@ -219,7 +222,7 @@ void actuator_expr_eval() {
 
     for (int i = 0; i < OUTPUT_COUNT; i++) {
 //        printf("expr out[%d]: %d.%d\n", i, (int) output[i], (int) ((output[i] - (int) output[i]) * 100));
-        actuator_process(i, (uint16_t)output[i]);
+        actuator_process(i, (uint16_t) output[i]);
     }
 }
 

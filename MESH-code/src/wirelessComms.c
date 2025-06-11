@@ -124,7 +124,8 @@ uint8_t handle_CSR(struct Packet *pck) {
     }
 
     if (pckCSR->header.finalDestination == hw_id()) {
-        LOG("CSR received for: %d:%d\n", pckCSR->place, pckCSR->sensorCh);
+        LOG("CSR received from:%04x for: %d %d:%d\n", pckCSR->header.originalSource, pckCSR->dataCh, pckCSR->place,
+            pckCSR->sensorCh);
         // check if this node is packets target
         if ((pckCSR->place == sensor_place || pckCSR->place == 0) &&
             (pckCSR->sensorCh == sensor_sensorCh || pckCSR->sensorCh == 0)) {
@@ -293,12 +294,24 @@ uint8_t handle_CD(struct Packet *pck) {
     }
     if (pck->finalDestination == hw_id()) {
         // TODO: call incoming chanel data handler
-        actuator_handle_CD(pckCD);
+        if (!actuator_handle_CD(pckCD)) {
+            struct PacketACK *ack = PCK_INIT(ACK, (cc->txBuf + 1));
+            ack->header.originalSource = hw_id();
+            ack->header.sourceId = hw_id();
+            ack->header.finalDestination = pckCD->header.originalSource;
+            ack->header.destinationId = routing_getRouteById(pckCD->header.originalSource);
+            ack->header.index = pckCD->header.index;
+            ack->ackType = ACK_UNSUBSCRIBE;
+            ack->dataCh = pckCD->dataCh;
+            calc_crc((struct Packet *) ack);
+            return sizeof(struct PacketACK);
+        }
     } else {
         // resend
         uint16_t destination = routing_getRouteById(pck->finalDestination);
         if (destination == 0) {
             //FIXME:no destination!!
+            try_discover(pck->finalDestination, 0, 0);
         }
         struct PacketCD *response = PCK_INIT(CD, cc->txBuf + 1);
         response->header.sourceId = hw_id();
@@ -505,7 +518,11 @@ uint8_t handle_ACK(struct Packet *pck) {
     }
 
     if (pckACK->header.finalDestination == hw_id()) {
-        LOG("ACK received - from: %04x about:%d\n", pckACK->header.originalSource, pckACK->ackType);
+        LOG("ACK received - from: %04x type: %d\n", pckACK->header.originalSource, pckACK->ackType);
+        if (pckACK->ackType == ACK_UNSUBSCRIBE) {
+            //remove sender from subscribers list
+            sensor_remove_from_subscribers(pckACK->header.originalSource, pckACK->dataCh);
+        }
         return 0;
     }
 
@@ -602,7 +619,7 @@ void try_subscribe(uint8_t place, uint8_t sensorCh, uint8_t dataCh) {
             calc_crc((struct Packet *) &packetCSR);
             indexCounter++;
             cc1101_transmit_sync(cc, (uint8_t *) &packetCSR, sizeof(struct PacketCSR), 0);
-            HAL_Delay(10);
+            HAL_Delay(100);
         }
         for (int n = 0; n < DESTINATION_COUNT; n++) {
             if ((neighbourTable[i].destinations[n].place == place || place == 0) &&
@@ -625,7 +642,7 @@ void try_subscribe(uint8_t place, uint8_t sensorCh, uint8_t dataCh) {
                 calc_crc((struct Packet *) &packetCSR);
                 indexCounter++;
                 cc1101_transmit_sync(cc, (uint8_t *) &packetCSR, sizeof(struct PacketCSR), 0);
-                HAL_Delay(10);
+                HAL_Delay(100);
             }
         }
     }

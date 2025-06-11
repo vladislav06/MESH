@@ -25,7 +25,7 @@ extern float output[OUTPUT_COUNT];
 void actuator_load_config();
 
 /// Handle new packet, write data and evaluate expression
-void actuator_handle_CD(struct PacketCD *pck);
+bool actuator_handle_CD(struct PacketCD *pck);
 
 /// Evaluate expression
 void actuator_expr_eval();

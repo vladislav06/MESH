@@ -53,6 +53,7 @@ void sensor_send_data(uint16_t value, uint8_t dataCh) {
             };
             calc_crc((struct Packet *) &cd);
             cc1101_transmit_sync(cc, (uint8_t *) &cd, sizeof(struct PacketCD), 0);
+            HAL_Delay(10);
         }
     }
 }
@@ -64,10 +65,18 @@ void sensor_send() {
     }
     for (int i = 0; i < SENSOR_CHANNEL_COUNT; i++) {
         if (sensor_channels[i] != 0) {
-            uint16_t data = get_data(i+1);
+            uint16_t data = get_data(i + 1);
             struct SensorConfig config = hw_get_sensor_config();
             sensor_send_data(data, config.mapping[i]);
             HAL_Delay(10);
+        }
+    }
+}
+
+void sensor_remove_from_subscribers(uint16_t id, uint8_t dataCh) {
+    for (int i = 0; i < SUBSCRIBER_COUNT; i++) {
+        if (subscribers[i].id == id && subscribers[i].dataCh == dataCh) {
+            memset(&subscribers[i], 0, sizeof(struct Subscriber));
         }
     }
 }
