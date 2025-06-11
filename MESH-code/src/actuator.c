@@ -20,8 +20,8 @@
 uint16_t configuration_version;
 uint16_t configuration_length;
 uint16_t placePosInEEPROM;
-struct expr *expression;
 uint16_t vars[10];
+uint16_t received_vars_cntr[10];
 float output[OUTPUT_COUNT];
 
 
@@ -141,7 +141,21 @@ bool actuator_handle_CD(struct PacketCD *pck) {
             (channel->sensorCh == pck->sensorCh || channel->sensorCh == 0)) {
             // Then use our inner array - at place i in usedChannels is the channel that matches
             // i.e. channel that matches is at index 0 in usedChannels? then value for it is in vars at index 0, too
-            vars[i] += pck->value;
+
+            //min
+            if (channel->mixMode == 1) {
+                // use min
+                vars[i] = pck->value < vars[i] ? pck->value : vars[i];
+                received_vars_cntr[i]++;
+            } else if (channel->mixMode == 2) {
+                // use max
+                vars[i] = pck->value > vars[i] ? pck->value : vars[i];
+                received_vars_cntr[i]++;
+            } else if (channel->mixMode == 0) {
+                // use cumulative average
+                vars[i] = (pck->value + (received_vars_cntr[i] * vars[i])) / (received_vars_cntr[i] + 1);
+                received_vars_cntr[i]++;
+            }
             cdIsUsed = true;
             break;
         }
@@ -169,6 +183,9 @@ void actuator_expr_eval() {
         // Map data received from pckCD to expression
         struct expr_var *var = expr_var(&channel->name, 1);
         var->value = vars[i];
+        vars[i] = 0;
+        received_vars_cntr[i] = 0;
+
         // Keep iterating to map everything else
         bytePos += sizeof(struct DataChannel);
     }
